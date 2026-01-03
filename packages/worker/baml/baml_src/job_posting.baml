@@ -45,8 +45,13 @@ function ExtractJobPosting(raw_text: string) -> JobPosting {
 function ExtractURLs(text: string) -> string[] {
   client OpenRouter
   prompt #"
-    Find all URLs in the following text that likely point to a job description page or company careers site.
-    Exclude links to Hacker News itself or other irrelevant sites.
+    Analyze the following text and extract ALL URLs that point directly to a specific job description or an application page on an Applicant Tracking System (ATS) like Greenhouse, Lever, Ashby, Workable, etc.
+
+    IMPORTANT: 
+    - Exclude generic company homepages (e.g., 'https://google.com').
+    - Exclude links to general 'Careers' pages if a direct link to a specific role is present.
+    - Exclude links to social media or irrelevant sites.
+    - If the text mentions multiple different roles with different links, include ALL of them.
 
     {{ text }}
 
