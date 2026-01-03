@@ -47,6 +47,30 @@ class JobPosting {
   technologies string[]
 }
 
+class PageAnalysis {
+  is_job_list bool
+  job_links string[]
+}
+
+function AnalyzePageType(raw_text: string, base_url: string) -> PageAnalysis {
+  client OpenRouter
+  prompt #"
+    Analyze the following text from a webpage (URL: {{ base_url }}) and determine if it is a single job posting or a list of multiple job listings.
+
+    If it is a list of multiple jobs (e.g., a company careers page or a search results page on an ATS), extract ALL direct links to the individual job description pages.
+    
+    IMPORTANT: 
+    - Provide the full absolute URLs if possible.
+    - If the links are relative, try to reconstruct them using the base_url.
+    - Exclude links to non-job pages (e.g., 'About Us', 'Contact', social media).
+
+    Text Content:
+    {{ raw_text }}
+
+    {{ ctx.output_format }}
+  "#
+}
+
 function ExtractJobPosting(raw_text: string) -> JobPosting {
   client OpenRouter
   prompt #"

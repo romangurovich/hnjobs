@@ -20,7 +20,7 @@ $ pnpm add @boundaryml/baml
 
 import type { Image, Audio, Pdf, Video } from "@boundaryml/baml"
 import type { Checked, Check } from "./types"
-import type {  JobPosting,  MetropolitanArea,  RemoteStatus,  RoleLevel } from "./types"
+import type {  JobPosting,  MetropolitanArea,  PageAnalysis,  RemoteStatus,  RoleLevel } from "./types"
 import type * as types from "./types"
 
 /******************************************************************************
@@ -48,5 +48,9 @@ export namespace partial_types {
       role_level?: types.RoleLevel | null
       management_level?: number | null
       technologies: string[]
+    }
+    export interface PageAnalysis {
+      is_job_list?: boolean | null
+      job_links: string[]
     }
 }

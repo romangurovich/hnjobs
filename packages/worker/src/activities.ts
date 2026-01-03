@@ -78,9 +78,41 @@ export async function processPageContent(content: string) {
 
 /**
 
+ * Uses the BAML client to determine if a page is a job list and extract individual links.
+
+ */
+
+export async function analyzePageType(content: string, url: string) {
+
+  console.log(`Analyzing page type for: ${url}`);
+
+  try {
+
+    const analysis = await b.AnalyzePageType(content, url);
+
+    console.log(`Analysis for ${url}: is_job_list=${analysis.is_job_list}, found ${analysis.job_links.length} links`);
+
+    return analysis;
+
+  } catch (error: any) {
+
+    console.error(`Error analyzing page type for ${url}:`, error.message);
+
+    return { is_job_list: false, job_links: [] };
+
+  }
+
+}
+
+
+
+/**
+
  * Uses the BAML client to extract potential job URLs from text.
 
  */
+
+
 
 export async function extractUrlsFromText(text: string): Promise<string[]> {
 

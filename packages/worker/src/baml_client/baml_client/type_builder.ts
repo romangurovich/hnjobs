@@ -29,6 +29,8 @@ export default class TypeBuilder {
     
     JobPosting: ClassViewer<'JobPosting', "company_name" | "job_title" | "summary" | "salary_min" | "salary_max" | "salary_currency" | "location" | "remote_status" | "role_level" | "management_level" | "technologies">;
     
+    PageAnalysis: ClassViewer<'PageAnalysis', "is_job_list" | "job_links">;
+    
     
     MetropolitanArea: EnumViewer<'MetropolitanArea', "SAN_FRANCISCO_BAY_AREA" | "NEW_YORK_CITY" | "LONDON" | "BERLIN" | "PARIS" | "AMSTERDAM" | "SINGAPORE" | "BANGALORE" | "SEATTLE" | "AUSTIN" | "BOSTON" | "LOS_ANGELES" | "CHICAGO" | "TORONTO" | "VANCOUVER" | "REMOTE" | "OTHER">;
     
@@ -40,7 +42,7 @@ export default class TypeBuilder {
     constructor() {
         this.tb = new _TypeBuilder({
           classes: new Set([
-            "JobPosting",
+            "JobPosting","PageAnalysis",
           ]),
           enums: new Set([
             "MetropolitanArea","RemoteStatus","RoleLevel",
@@ -50,6 +52,10 @@ export default class TypeBuilder {
         
         this.JobPosting = this.tb.classViewer("JobPosting", [
           "company_name","job_title","summary","salary_min","salary_max","salary_currency","location","remote_status","role_level","management_level","technologies",
+        ]);
+        
+        this.PageAnalysis = this.tb.classViewer("PageAnalysis", [
+          "is_job_list","job_links",
         ]);
         
         

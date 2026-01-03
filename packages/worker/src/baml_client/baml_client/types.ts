@@ -96,3 +96,9 @@ export interface JobPosting {
   technologies: string[]
   
 }
+
+export interface PageAnalysis {
+  is_job_list: boolean
+  job_links: string[]
+  
+}
