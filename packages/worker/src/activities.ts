@@ -13,13 +13,23 @@ export async function scrapePage(url: string): Promise<string> {
   try {
     const page = await browser.newPage();
     
-    // Use 'networkidle' to wait for the page to be fully loaded (including JS content)
+    // 1. Wait for the initial DOM to be loaded
+    console.log(`Navigating to ${url}...`);
     await page.goto(url, { 
-      waitUntil: 'networkidle',
+      waitUntil: 'domcontentloaded',
       timeout: 30000 
     });
 
-    // Extract the text content
+    // 2. Try to wait for the network to settle, but don't let ads/tracking block us forever
+    // We wait for 'networkidle' but cap it at 5 seconds.
+    try {
+      await page.waitForLoadState('networkidle', { timeout: 5000 });
+      console.log('Network settled (networkidle reached).');
+    } catch (e) {
+      console.warn('Network did not settle within 5s (likely ads/tracking), proceeding with extraction.');
+    }
+
+    // 3. Extract the text content
     let content = await page.evaluate(() => {
       const toRemove = ['script', 'style', 'noscript', 'iframe', 'header', 'footer', 'nav'];
       toRemove.forEach(tag => {
