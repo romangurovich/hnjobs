@@ -1,4 +1,4 @@
-import { proxyActivities } from '@temporalio/workflow';
+import { proxyActivities, executeChild } from '@temporalio/workflow';
 // Only import types from the activities file!
 import type * as activities from './activities';
 
@@ -7,29 +7,48 @@ const { scrapePage, processPageContent, persistJobData, extractUrlsFromText } = 
 });
 
 /**
- * A workflow that scrapes a single job page and persists the data.
+ * STANDALONE WORKFLOW: Crawl a page to get content.
  */
-export async function scrapeAndPersistJob(url: string, hnPostId: string | null): Promise<any> {
-  const rawContent = await scrapePage(url);
-  const jobData = await processPageContent(rawContent);
-  return await persistJobData(jobData, rawContent, hnPostId, 'LINK');
+export async function crawlPageWorkflow(url: string): Promise<string> {
+  console.log(`Starting standalone crawl for: ${url}`);
+  return await scrapePage(url);
 }
 
 /**
- * A workflow that processes an HN post, finding all links or parsing content directly.
+ * STANDALONE WORKFLOW: Parse text and persist as an enriched job.
+ */
+export async function enrichJobWorkflow(
+  content: string, 
+  hnPostId: string | null, 
+  source: 'LINK' | 'POST_CONTENT'
+): Promise<any> {
+  console.log(`Starting standalone enrichment. Source: ${source}`);
+  const jobData = await processPageContent(content);
+  return await persistJobData(jobData, content, hnPostId, source);
+}
+
+/**
+ * ORCHESTRATOR WORKFLOW: Processes an HN post.
  */
 export async function processHNPost(hnPostId: string, postText: string): Promise<any[]> {
   const urls = await extractUrlsFromText(postText);
   const results: any[] = [];
   
   if (urls && urls.length > 0) {
-    console.log(`Found ${urls.length} potential job links. Processing each...`);
-    
     for (const url of urls) {
       try {
-        // Note: In a production app, we might want to start child workflows here
-        // for better parallelism and error isolation.
-        const result = await scrapeAndPersistJob(url, hnPostId);
+        // Step 1: Crawl the link (as a child workflow)
+        const rawContent = await executeChild(crawlPageWorkflow, {
+          args: [url],
+          workflowId: `crawl-${hnPostId}-${url.slice(-10)}`,
+        });
+
+        // Step 2: Enrich and persist (as a child workflow)
+        const result = await executeChild(enrichJobWorkflow, {
+          args: [rawContent, hnPostId, 'LINK'],
+          workflowId: `enrich-${hnPostId}-${url.slice(-10)}`,
+        });
+        
         results.push(result);
       } catch (error: any) {
         console.warn(`Failed to process link ${url}: ${error.message}`);
@@ -37,13 +56,14 @@ export async function processHNPost(hnPostId: string, postText: string): Promise
     }
   }
 
-  if (results.length > 0) {
-    return results;
+  // Fallback: If no links, process post content directly
+  if (results.length === 0) {
+    const result = await executeChild(enrichJobWorkflow, {
+      args: [postText, hnPostId, 'POST_CONTENT'],
+      workflowId: `enrich-fallback-${hnPostId}`,
+    });
+    results.push(result);
   }
 
-  // Fallback: Parse the post content directly
-  console.log(`No valid job links processed. Parsing post content directly for ID: ${hnPostId}`);
-  const jobData = await processPageContent(postText);
-  const savedJob = await persistJobData(jobData, postText, hnPostId, 'POST_CONTENT');
-  return [savedJob];
+  return results;
 }

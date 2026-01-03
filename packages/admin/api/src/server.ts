@@ -75,10 +75,11 @@ app.post('/trigger-workflow', async (req, res) => {
         args: [hnPostId.toString(), postText],
       });
     } else if (url) {
-      await temporalClient.workflow.start('scrapeAndPersistJob', {
+      // For a standalone URL, we can chain these or just start the crawl
+      await temporalClient.workflow.start('crawlPageWorkflow', {
         taskQueue: 'hn-jobs',
         workflowId: workflowId,
-        args: [url, null], // No HN post ID for manual trigger
+        args: [url],
       });
     }
 
