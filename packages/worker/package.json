@@ -8,9 +8,11 @@
     "bundle": "bun run src/bundle.ts"
   },
   "dependencies": {
+    "@boundaryml/baml": "^0.216.0",
     "@temporalio/client": "^1.14.0",
     "@temporalio/worker": "^1.14.0",
     "@temporalio/workflow": "^1.14.0",
+    "dotenv": "^17.2.3",
     "playwright": "^1.57.0"
   },
   "devDependencies": {
