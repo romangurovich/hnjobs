@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { chromium } from 'playwright';
-import { b } from './baml_client';
+import { b } from './baml_client/baml_client';
 
 /**
  * Robustly scrapes the text content of a web page using Playwright.
