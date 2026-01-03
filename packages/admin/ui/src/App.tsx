@@ -3,10 +3,22 @@ import { trpc } from './lib/trpc';
 import './App.css';
 
 const stripHtml = (html: string) => {
-  return html
-    .replace(/<p>/gi, '\n\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]*>?/gm, '')
+  let text = html;
+  
+  // 1. Handle anchor tags specially to preserve the full href
+  text = text.replace(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)<\/a>/gi, (_, href, content) => {
+    return `${content} (${href})`;
+  });
+
+  // 2. Handle paragraphs and line breaks
+  text = text.replace(/<p>/gi, '\n\n')
+             .replace(/<br\s*\/?>/gi, '\n');
+
+  // 3. Strip all other tags
+  text = text.replace(/<[^>]*>?/gm, '');
+
+  // 4. Decode common HTML entities
+  return text
     .replace(/&quot;/g, '"')
     .replace(/&amp;/g, '&')
     .replace(/&#x27;/g, "'")
