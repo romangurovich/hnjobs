@@ -53,21 +53,30 @@ app.get('/hn/latest-posts', async (req, res) => {
 });
 
 app.post('/trigger-workflow', async (req, res) => {
-  const { url } = req.body;
+  const { url, hnPostId, postText } = req.body;
 
-  if (!url) {
-    return res.status(400).json({ error: 'URL is required' });
+  if (!url && (!hnPostId || !postText)) {
+    return res.status(400).json({ error: 'Either URL or HN Post data is required' });
   }
 
   try {
     const workflowId = `job-${nanoid()}`;
-    console.log(`Starting workflow ${workflowId} for URL: ${url}`);
+    console.log(`Starting workflow ${workflowId}`);
 
-    await temporalClient.workflow.start('crawlAndProcessJob', {
-      taskQueue: 'hn-jobs',
-      workflowId: workflowId,
-      args: [url],
-    });
+    if (hnPostId && postText) {
+      await temporalClient.workflow.start('processHNPost', {
+        taskQueue: 'hn-jobs',
+        workflowId: workflowId,
+        args: [hnPostId.toString(), postText],
+      });
+    } else {
+      // Legacy support for direct URL triggering (can be updated later)
+      await temporalClient.workflow.start('processHNPost', {
+        taskQueue: 'hn-jobs',
+        workflowId: workflowId,
+        args: [null, url], 
+      });
+    }
 
     console.log(`Workflow started successfully! Workflow ID: ${workflowId}`);
     res.json({ workflowId });

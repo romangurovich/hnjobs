@@ -104,16 +104,37 @@ function App() {
                 paddingBottom: '16px', 
                 borderBottom: '1px solid #f0f0f0' 
               }}>
-                <div style={{ marginBottom: '8px', fontSize: '14px', color: '#666' }}>
+                <div style={{ marginBottom: '8px', fontSize: '14px', color: '#666', display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <strong>{post.by}</strong> | {new Date(post.time * 1000).toLocaleString()} | 
                   <a 
                     href={`https://news.ycombinator.com/item?id=${post.id}`} 
                     target="_blank" 
                     rel="noreferrer"
-                    style={{ marginLeft: '8px', color: '#ff6600' }}
+                    style={{ color: '#ff6600' }}
                   >
                     Original
                   </a>
+                  <button 
+                    onClick={() => {
+                      setIsTriggering(true);
+                      fetch('http://localhost:8081/trigger-workflow', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ hnPostId: post.id, postText: post.text })
+                      })
+                      .then(res => res.json())
+                      .then(data => {
+                        setTriggerMessage(`Workflow started for post ${post.id}: ${data.workflowId}`);
+                        setTimeout(() => refetchJobs(), 3000);
+                      })
+                      .catch(err => setTriggerMessage(`Error: ${err.message}`))
+                      .finally(() => setIsTriggering(false));
+                    }}
+                    disabled={isTriggering}
+                    style={{ padding: '2px 8px', fontSize: '12px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    Process
+                  </button>
                 </div>
                 <div 
                   className="hn-post-text"

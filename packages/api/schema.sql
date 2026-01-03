@@ -4,6 +4,7 @@ DROP TABLE IF EXISTS jobs;
 
 CREATE TABLE jobs (
   id TEXT PRIMARY KEY,
+  hn_post_id TEXT, -- The ID of the HN comment
   company_name TEXT NOT NULL,
   job_title TEXT NOT NULL,
   salary_min INTEGER,
@@ -14,6 +15,7 @@ CREATE TABLE jobs (
   role_level TEXT NOT NULL,    -- JUNIOR, MID, SENIOR, STAFF
   is_manager BOOLEAN NOT NULL,
   summary TEXT,
+  processed_from TEXT NOT NULL, -- 'LINK' or 'POST_CONTENT'
   raw_content TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

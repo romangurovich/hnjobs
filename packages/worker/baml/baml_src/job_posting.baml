@@ -41,3 +41,15 @@ function ExtractJobPosting(raw_text: string) -> JobPosting {
     {{ ctx.output_format }}
   "#
 }
+
+function ExtractURLs(text: string) -> string[] {
+  client OpenRouter
+  prompt #"
+    Find all URLs in the following text that likely point to a job description page or company careers site.
+    Exclude links to Hacker News itself or other irrelevant sites.
+
+    {{ text }}
+
+    {{ ctx.output_format }}
+  "#
+}

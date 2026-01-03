@@ -67,19 +67,69 @@ export async function processPageContent(content: string) {
 }
 
 /**
- * Persists the structured job data to the database via the API server.
+
+ * Uses the BAML client to extract potential job URLs from text.
+
  */
-export async function persistJobData(jobData: any, rawContent: string) {
-  console.log('Persisting job data to database...');
+
+export async function extractUrlsFromText(text: string): Promise<string[]> {
+
+  console.log('Extracting URLs from text...');
+
   try {
-    const result = await apiClient.job.save.mutate({
-      ...jobData,
-      raw_content: rawContent,
-    });
-    console.log(`Successfully persisted job with ID: ${result.id}`);
-    return result;
+
+    const urls = await b.ExtractURLs(text);
+
+    console.log(`Found ${urls.length} potential job URLs.`);
+
+    return urls;
+
   } catch (error: any) {
-    console.error('Error persisting job data:', error.message);
-    throw error;
+
+    console.error('Error extracting URLs:', error.message);
+
+    return [];
+
   }
+
+}
+
+
+
+/**
+
+ * Persists the structured job data to the database via the API server.
+
+ */
+
+export async function persistJobData(jobData: any, rawContent: string, hnPostId: string | null, processedFrom: 'LINK' | 'POST_CONTENT') {
+
+  console.log('Persisting job data to database...');
+
+  try {
+
+    const result = await apiClient.job.save.mutate({
+
+      ...jobData,
+
+      raw_content: rawContent,
+
+      hn_post_id: hnPostId,
+
+      processed_from: processedFrom,
+
+    });
+
+    console.log(`Successfully persisted job with ID: ${result.id}`);
+
+    return result;
+
+  } catch (error: any) {
+
+    console.error('Error persisting job data:', error.message);
+
+    throw error;
+
+  }
+
 }
