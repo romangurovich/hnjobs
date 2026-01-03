@@ -1,0 +1,12 @@
+{
+  "name": "@hnjobs/worker",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "dependencies": {
+    "@temporalio/client": "^1.14.0",
+    "@temporalio/worker": "^1.14.0",
+    "@temporalio/workflow": "^1.14.0",
+    "playwright": "^1.57.0"
+  }
+}
