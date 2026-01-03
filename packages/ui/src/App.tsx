@@ -1,23 +1,54 @@
 
+import { useState } from 'react';
 import './App.css';
 import { trpc } from './lib/trpc';
 import { useFilterStore } from './lib/store';
 
 function App() {
-  // Example of using the tRPC hook (will fail at runtime until backend is running)
+  const [url, setUrl] = useState('');
   const { data, isLoading, error } = trpc.job.list.useQuery({
     search: 'frontend',
   });
+  const createJobMutation = trpc.job.create.useMutation();
 
-  // Example of using the Zustand store
   const { searchQuery, setSearchQuery } = useFilterStore();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createJobMutation.mutate({ url }, {
+      onSuccess: (data) => {
+        console.log('Workflow started:', data.workflowId);
+        alert(`Workflow started: ${data.workflowId}`);
+      },
+      onError: (error) => {
+        console.error('Error starting workflow:', error);
+        alert(`Error: ${error.message}`);
+      },
+    });
+  };
 
   return (
     <div>
       <h1>HN Jobs Board</h1>
+      
+      <form onSubmit={handleSubmit}>
+        <h3>Temp form to trigger workflow</h3>
+        <input
+          type="url"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="Enter job URL to process"
+          style={{ width: '400px' }}
+        />
+        <button type="submit" disabled={createJobMutation.isPending}>
+          {createJobMutation.isPending ? 'Starting...' : 'Start Workflow'}
+        </button>
+      </form>
+
+      <hr />
+
       <main>
-        {/* We will add FilterPanel, JobList, etc. here */}
-        <p>This is where the job board will be.</p>
+        <h2>Job List (from API)</h2>
         <input
           type="text"
           value={searchQuery}
