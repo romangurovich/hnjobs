@@ -43,7 +43,13 @@ export function JobCard({ job }: JobCardProps) {
         </div>
         <div className="flex items-center gap-2">
           <Briefcase size={16} />
-          <span>{job.is_manager ? 'Management Role' : 'Individual Contributor'}</span>
+          <span>
+            {job.management_level === 0 
+              ? 'Individual Contributor' 
+              : job.management_level === 10 
+                ? 'Pure Management' 
+                : `Management Level: ${job.management_level}/10`}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <Calendar size={16} />

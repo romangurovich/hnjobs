@@ -13,7 +13,7 @@ CREATE TABLE jobs (
   location TEXT NOT NULL,
   remote_status TEXT NOT NULL, -- REMOTE_ONLY, HYBRID, ON_SITE
   role_level TEXT NOT NULL,    -- JUNIOR, MID, SENIOR, STAFF
-  is_manager BOOLEAN NOT NULL,
+  management_level INTEGER NOT NULL, -- 0-10 scale
   summary TEXT,
   processed_from TEXT NOT NULL, -- 'LINK' or 'POST_CONTENT'
   raw_content TEXT,

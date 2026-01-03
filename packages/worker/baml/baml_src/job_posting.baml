@@ -21,7 +21,7 @@ class JobPosting {
   location string
   remote_status RemoteStatus
   role_level RoleLevel
-  is_manager bool
+  management_level int
   technologies string[]
 }
 
@@ -35,6 +35,11 @@ function ExtractJobPosting(raw_text: string) -> JobPosting {
     - Clearly explain what the company does and its mission.
     - Detail the specific responsibilities and impact the applicant will have.
     - Highlight what makes this specific opportunity unique or compelling for a technical candidate.
+
+    For 'management_level', provide an integer from 0 to 10:
+    - 0: Pure Individual Contributor (no management responsibilities).
+    - 5: Lead / Staff role with significant mentoring or partial management.
+    - 10: Pure Management (Director, CTO, etc.).
 
     {{ raw_text }}
 

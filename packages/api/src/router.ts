@@ -13,7 +13,7 @@ const jobRouter = router({
       location: z.string(),
       remote_status: z.string(),
       role_level: z.string(),
-      is_manager: z.boolean(),
+      management_level: z.number().min(0).max(10),
       technologies: z.array(z.string()),
       summary: z.string().optional(),
       hn_post_id: z.string().nullable().optional(),
@@ -27,13 +27,13 @@ const jobRouter = router({
       await ctx.db.prepare(`
         INSERT INTO jobs (
           id, hn_post_id, company_name, job_title, salary_min, salary_max, 
-          salary_currency, location, remote_status, role_level, is_manager, 
+          salary_currency, location, remote_status, role_level, management_level, 
           summary, processed_from, raw_content
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         id, input.hn_post_id ?? null, input.company_name, input.job_title, input.salary_min, input.salary_max,
         input.salary_currency, input.location, input.remote_status, input.role_level, 
-        input.is_manager ? 1 : 0, input.summary ?? null, input.processed_from, input.raw_content ?? null
+        input.management_level, input.summary ?? null, input.processed_from, input.raw_content ?? null
       ).run();
 
       // 2. Handle technologies (simple implementation)
@@ -66,30 +66,37 @@ const jobRouter = router({
       minSalary: z.number().nullable().optional(),
     }).optional())
     .query(async ({ input, ctx }) => {
-      let query = 'SELECT * FROM jobs';
+      let query = `
+        SELECT 
+          j.*, 
+          GROUP_CONCAT(t.name) as technologies_list
+        FROM jobs j
+        LEFT JOIN job_technologies jt ON j.id = jt.job_id
+        LEFT JOIN technologies t ON jt.technology_id = t.id
+      `;
       let conditions: string[] = [];
       let params: any[] = [];
 
       if (input?.search) {
-        conditions.push('(company_name LIKE ? OR job_title LIKE ?)');
+        conditions.push('(j.company_name LIKE ? OR j.job_title LIKE ?)');
         const searchPattern = `%${input.search}%`;
         params.push(searchPattern, searchPattern);
       }
 
       if (input?.roleLevels && input.roleLevels.length > 0) {
         const placeholders = input.roleLevels.map(() => '?').join(',');
-        conditions.push(`role_level IN (${placeholders})`);
+        conditions.push(`j.role_level IN (${placeholders})`);
         params.push(...input.roleLevels);
       }
 
       if (input?.remoteStatuses && input.remoteStatuses.length > 0) {
         const placeholders = input.remoteStatuses.map(() => '?').join(',');
-        conditions.push(`remote_status IN (${placeholders})`);
+        conditions.push(`j.remote_status IN (${placeholders})`);
         params.push(...input.remoteStatuses);
       }
 
       if (input?.minSalary) {
-        conditions.push('salary_max >= ?');
+        conditions.push('j.salary_max >= ?');
         params.push(input.minSalary);
       }
 
@@ -97,11 +104,14 @@ const jobRouter = router({
         query += ' WHERE ' + conditions.join(' AND ');
       }
 
-      query += ' ORDER BY created_at DESC';
+      query += ' GROUP BY j.id ORDER BY j.created_at DESC';
 
       const { results } = await ctx.db.prepare(query).bind(...params).all();
       
-      return results;
+      return results.map((job: any) => ({
+        ...job,
+        technologies: job.technologies_list ? job.technologies_list.split(',') : [],
+      }));
     }),
 });
 
