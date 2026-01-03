@@ -74,12 +74,11 @@ app.post('/trigger-workflow', async (req, res) => {
         workflowId: workflowId,
         args: [hnPostId.toString(), postText],
       });
-    } else {
-      // Legacy support for direct URL triggering (can be updated later)
-      await temporalClient.workflow.start('processHNPost', {
+    } else if (url) {
+      await temporalClient.workflow.start('scrapeAndPersistJob', {
         taskQueue: 'hn-jobs',
         workflowId: workflowId,
-        args: [null, url], 
+        args: [url, null], // No HN post ID for manual trigger
       });
     }
 

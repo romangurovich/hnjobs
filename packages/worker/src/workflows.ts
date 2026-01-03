@@ -7,6 +7,15 @@ const { scrapePage, processPageContent, persistJobData, extractUrlsFromText } = 
 });
 
 /**
+ * A workflow that scrapes a single job page and persists the data.
+ */
+export async function scrapeAndPersistJob(url: string, hnPostId: string | null): Promise<any> {
+  const rawContent = await scrapePage(url);
+  const jobData = await processPageContent(rawContent);
+  return await persistJobData(jobData, rawContent, hnPostId, 'LINK');
+}
+
+/**
  * A workflow that processes an HN post, finding all links or parsing content directly.
  */
 export async function processHNPost(hnPostId: string, postText: string): Promise<any[]> {
@@ -18,31 +27,23 @@ export async function processHNPost(hnPostId: string, postText: string): Promise
     
     for (const url of urls) {
       try {
-        console.log(`Processing link: ${url}`);
-        const rawContent = await scrapePage(url);
-        const jobData = await processPageContent(rawContent);
-        const savedJob = await persistJobData(jobData, rawContent, hnPostId, 'LINK');
-        results.push(savedJob);
+        // Note: In a production app, we might want to start child workflows here
+        // for better parallelism and error isolation.
+        const result = await scrapeAndPersistJob(url, hnPostId);
+        results.push(result);
       } catch (error: any) {
         console.warn(`Failed to process link ${url}: ${error.message}`);
-        // Continue to the next link
       }
     }
   }
 
-  // If we processed some links successfully, return the results
   if (results.length > 0) {
     return results;
   }
 
-  // Fallback: No valid job links found or all failed, parse the post content directly
+  // Fallback: Parse the post content directly
   console.log(`No valid job links processed. Parsing post content directly for ID: ${hnPostId}`);
-  try {
-    const jobData = await processPageContent(postText);
-    const savedJob = await persistJobData(jobData, postText, hnPostId, 'POST_CONTENT');
-    return [savedJob];
-  } catch (error: any) {
-    console.error(`Failed to parse post content directly: ${error.message}`);
-    throw error;
-  }
+  const jobData = await processPageContent(postText);
+  const savedJob = await persistJobData(jobData, postText, hnPostId, 'POST_CONTENT');
+  return [savedJob];
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { trpc } from './lib/trpc';
 import './App.css';
 
@@ -25,7 +25,7 @@ function App() {
 
   const { data: jobs, isLoading: isJobsLoading, refetch: refetchJobs } = trpc.job.list.useQuery();
 
-  useState(() => {
+  useEffect(() => {
     fetch('http://localhost:8081/hn/latest-posts')
       .then(res => res.json())
       .then(data => {
@@ -37,7 +37,7 @@ function App() {
         console.error('Error fetching HN posts:', err);
         setIsHnLoading(false);
       });
-  });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
