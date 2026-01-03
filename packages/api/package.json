@@ -10,7 +10,6 @@
     "@hono/trpc-server": "^0.4.1",
     "@trpc/server": "^11.8.1",
     "hono": "^4.11.3",
-    "nanoid": "^5.1.6",
     "zod": "^4.3.4"
   },
   "devDependencies": {
