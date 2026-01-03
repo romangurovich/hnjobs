@@ -29,8 +29,18 @@ export async function scrapePage(url: string): Promise<string> {
       console.warn('Network did not settle within 5s (likely ads/tracking), proceeding with extraction.');
     }
 
-    // 3. Extract the text content
+    // 3. Extract the text content, preserving URLs in anchor tags
     let content = await page.evaluate(() => {
+      // Convert all links to "text (url)" format
+      const anchors = document.querySelectorAll('a');
+      anchors.forEach(a => {
+        const href = a.href;
+        const text = a.innerText.trim();
+        if (href && text && !text.startsWith('http')) {
+          a.innerText = `${text} (${href})`;
+        }
+      });
+
       const toRemove = ['script', 'style', 'noscript', 'iframe', 'header', 'footer', 'nav'];
       toRemove.forEach(tag => {
         const elements = document.querySelectorAll(tag);
