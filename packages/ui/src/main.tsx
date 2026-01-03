@@ -13,7 +13,7 @@ function Root() {
     trpc.createClient({
       links: [
         httpBatchLink({
-          url: 'http://localhost:8787', // Placeholder for our Cloudflare Worker URL
+          url: 'http://localhost:8787/trpc', // Corrected URL
         }),
       ],
     }),
