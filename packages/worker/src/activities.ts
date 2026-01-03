@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { chromium } from 'playwright';
 import { b } from './baml_client/baml_client';
+import { apiClient } from './api_client';
 
 /**
  * Robustly scrapes the text content of a web page using Playwright.
@@ -51,6 +52,24 @@ export async function processPageContent(content: string) {
     return jobPosting;
   } catch (error: any) {
     console.error('Error processing content with LLM:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Persists the structured job data to the database via the API server.
+ */
+export async function persistJobData(jobData: any, rawContent: string) {
+  console.log('Persisting job data to database...');
+  try {
+    const result = await apiClient.job.save.mutate({
+      ...jobData,
+      raw_content: rawContent,
+    });
+    console.log(`Successfully persisted job with ID: ${result.id}`);
+    return result;
+  } catch (error: any) {
+    console.error('Error persisting job data:', error.message);
     throw error;
   }
 }

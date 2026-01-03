@@ -20,6 +20,9 @@ app.use(
   '/trpc/*',
   trpcServer({
     router: appRouter,
+    createContext: (opts, c) => ({
+      db: c.env.DB,
+    }),
   })
 );
 

@@ -1,14 +1,12 @@
 name = "hnjobs-api"
 main = "src/index.ts"
-compatibility_date = "2026-01-01" # Adjust as needed
+compatibility_date = "2024-01-01" # Adjust as needed
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
 # Add environment variables here if needed
-# EXAMPLE_VAR = "example_value"
 
-# We will add D1 database bindings here later
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "hnjobs-db"
-# database_id = "<your-database-id>"
+[[d1_databases]]
+binding = "DB"
+database_name = "hnjobs-db"
+database_id = "YOUR_DATABASE_ID_HERE" # Replace with your actual database_id
