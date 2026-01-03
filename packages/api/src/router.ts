@@ -17,6 +17,7 @@ const jobRouter = router({
       technologies: z.array(z.string()),
       summary: z.string().optional(),
       hn_post_id: z.string().nullable().optional(),
+      job_url: z.string().nullable().optional(),
       processed_from: z.enum(['LINK', 'POST_CONTENT']),
       raw_content: z.string().optional(),
     }))
@@ -26,12 +27,12 @@ const jobRouter = router({
       // 1. Insert the job
       await ctx.db.prepare(`
         INSERT INTO jobs (
-          id, hn_post_id, company_name, job_title, salary_min, salary_max, 
+          id, hn_post_id, job_url, company_name, job_title, salary_min, salary_max, 
           salary_currency, location, remote_status, role_level, management_level, 
           summary, processed_from, raw_content
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
-        id, input.hn_post_id ?? null, input.company_name, input.job_title, input.salary_min, input.salary_max,
+        id, input.hn_post_id ?? null, input.job_url ?? null, input.company_name, input.job_title, input.salary_min, input.salary_max,
         input.salary_currency, input.location, input.remote_status, input.role_level, 
         input.management_level, input.summary ?? null, input.processed_from, input.raw_content ?? null
       ).run();

@@ -108,29 +108,61 @@ export async function extractUrlsFromText(text: string): Promise<string[]> {
 
 /**
 
+
+
  * Persists the structured job data to the database via the API server.
+
+
 
  */
 
-export async function persistJobData(jobData: any, rawContent: string, hnPostId: string | null, processedFrom: 'LINK' | 'POST_CONTENT') {
+
+
+export async function persistJobData(jobData: any, rawContent: string, hnPostId: string | null, jobUrl: string | null, processedFrom: 'LINK' | 'POST_CONTENT') {
+
+
 
   console.log('Persisting job data to database...');
 
+
+
   try {
+
+
 
     const result = await apiClient.job.save.mutate({
 
+
+
       ...jobData,
+
+
 
       management_level: jobData.management_level ?? 0, // Default to IC
 
+
+
       raw_content: rawContent,
+
+
 
       hn_post_id: hnPostId,
 
+
+
+      job_url: jobUrl,
+
+
+
       processed_from: processedFrom,
 
+
+
     });
+
+
+
+
 
 
 

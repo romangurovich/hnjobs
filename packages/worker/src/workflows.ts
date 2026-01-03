@@ -28,11 +28,12 @@ export async function extractLinksWorkflow(postText: string, hnPostId: string): 
 export async function enrichAndPersistWorkflow(
   content: string, 
   hnPostId: string | null, 
+  jobUrl: string | null,
   source: 'LINK' | 'POST_CONTENT'
 ): Promise<any> {
   console.log(`[Post ${hnPostId}] Starting standalone enrichment. Source: ${source}`);
   const jobData = await processPageContent(content);
-  return await persistJobData(jobData, content, hnPostId, source);
+  return await persistJobData(jobData, content, hnPostId, jobUrl, source);
 }
 
 /**
@@ -59,9 +60,9 @@ export async function processHNPost(hnPostId: string, postText: string): Promise
           workflowId: `crawl-${uniqueId}`,
         });
 
-        // Enrich and persist
+        // Enrich and persist (passing the URL here!)
         return await executeChild(enrichAndPersistWorkflow, {
-          args: [rawContent, hnPostId, 'LINK'],
+          args: [rawContent, hnPostId, url, 'LINK'],
           workflowId: `enrich-${uniqueId}`,
         });
       } catch (error: any) {
@@ -81,7 +82,7 @@ export async function processHNPost(hnPostId: string, postText: string): Promise
   // Fallback: If no links successfully processed, process post content directly
   console.log(`[Post ${hnPostId}] No links processed. Falling back to post content...`);
   const result = await executeChild(enrichAndPersistWorkflow, {
-    args: [postText, hnPostId, 'POST_CONTENT'],
+    args: [postText, hnPostId, null, 'POST_CONTENT'],
     workflowId: `enrich-fallback-${hnPostId}`,
   });
   return [result];

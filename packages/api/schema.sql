@@ -5,6 +5,7 @@ DROP TABLE IF EXISTS jobs;
 CREATE TABLE jobs (
   id TEXT PRIMARY KEY,
   hn_post_id TEXT, -- The ID of the HN comment
+  job_url TEXT,    -- The original URL of the job listing
   company_name TEXT NOT NULL,
   job_title TEXT NOT NULL,
   salary_min INTEGER,

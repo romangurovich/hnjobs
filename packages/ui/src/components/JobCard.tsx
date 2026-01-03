@@ -66,9 +66,27 @@ export function JobCard({ job }: JobCardProps) {
         )) : null}
       </div>
 
-      <button className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-2 rounded-md font-semibold hover:bg-gray-800 transition-colors">
-        View Job Details <ExternalLink size={16} />
-      </button>
+      <div className="flex gap-3">
+        <a 
+          href={job.job_url || `https://news.ycombinator.com/item?id=${job.hn_post_id}`}
+          target="_blank"
+          rel="noreferrer"
+          className="flex-1 flex items-center justify-center gap-2 bg-gray-900 text-white py-2 rounded-md font-semibold hover:bg-gray-800 transition-colors text-sm"
+        >
+          {job.processed_from === 'POST_CONTENT' ? 'View HN Post' : 'View Job Details'} <ExternalLink size={16} />
+        </a>
+        
+        {job.hn_post_id && (
+          <a 
+            href={`https://news.ycombinator.com/item?id=${job.hn_post_id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 py-2 rounded-md font-semibold hover:bg-gray-50 transition-colors text-sm"
+          >
+            Source on HN <ExternalLink size={16} />
+          </a>
+        )}
+      </div>
     </div>
   );
 }
