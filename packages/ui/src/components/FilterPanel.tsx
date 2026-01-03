@@ -1,5 +1,6 @@
 import { useFilterStore, type RoleLevel, type RemoteStatus } from '../lib/store';
-import { Search, X, DollarSign } from 'lucide-react';
+import { Search, X, DollarSign, Tag } from 'lucide-react';
+import { trpc } from '../lib/trpc';
 import * as Slider from '@radix-ui/react-slider';
 
 export function FilterPanel() {
@@ -8,11 +9,15 @@ export function FilterPanel() {
     roleLevels, toggleRoleLevel,
     remoteStatuses, toggleRemoteStatus,
     minSalary, setMinSalary,
+    technologies: selectedTechs, toggleTechnology,
     resetFilters
   } = useFilterStore();
 
+  const { data: popularTechs } = trpc.job.getTechnologies.useQuery();
+
   const levels: RoleLevel[] = ['JUNIOR', 'MID', 'SENIOR', 'STAFF', 'PRINCIPAL', 'MANAGER'];
   const remotes: RemoteStatus[] = ['REMOTE_ONLY', 'HYBRID', 'ON_SITE'];
+// ... (rest of the component)
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -112,6 +117,28 @@ export function FilterPanel() {
           ))}
         </div>
       </div>
+
+      {/* Popular Technologies */}
+      {popularTechs && popularTechs.length > 0 && (
+        <div className="space-y-3">
+          <label className="text-sm font-semibold uppercase tracking-wider text-gray-500 text-[10px]">Top Technologies</label>
+          <div className="flex flex-wrap gap-2">
+            {popularTechs.map((tech: any) => (
+              <button
+                key={tech.name}
+                onClick={() => toggleTechnology(tech.name)}
+                className={`text-[10px] px-2 py-1 rounded-full border transition-colors ${
+                  selectedTechs.includes(tech.name)
+                    ? 'bg-primary border-primary text-white'
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-primary/50'
+                }`}
+              >
+                {tech.name} <span className="opacity-60">({tech.job_count})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

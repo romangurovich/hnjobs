@@ -64,6 +64,7 @@ const jobRouter = router({
       roleLevels: z.array(z.string()).optional(),
       remoteStatuses: z.array(z.string()).optional(),
       minSalary: z.number().nullable().optional(),
+      technologies: z.array(z.string()).optional(),
     }).optional())
     .query(async ({ input, ctx }) => {
       let query = `
@@ -100,6 +101,16 @@ const jobRouter = router({
         params.push(input.minSalary);
       }
 
+      if (input?.technologies && input.technologies.length > 0) {
+        const placeholders = input.technologies.map(() => '?').join(',');
+        conditions.push(`EXISTS (
+          SELECT 1 FROM job_technologies jt2 
+          JOIN technologies t2 ON jt2.technology_id = t2.id 
+          WHERE jt2.job_id = j.id AND t2.name IN (${placeholders})
+        )`);
+        params.push(...input.technologies);
+      }
+
       if (conditions.length > 0) {
         query += ' WHERE ' + conditions.join(' AND ');
       }
@@ -112,6 +123,19 @@ const jobRouter = router({
         ...job,
         technologies: job.technologies_list ? job.technologies_list.split(',') : [],
       }));
+    }),
+
+  getTechnologies: publicProcedure
+    .query(async ({ ctx }) => {
+      const { results } = await ctx.db.prepare(`
+        SELECT t.name, COUNT(jt.job_id) as job_count
+        FROM technologies t
+        JOIN job_technologies jt ON t.id = jt.technology_id
+        GROUP BY t.id
+        ORDER BY job_count DESC
+        LIMIT 50
+      `).all();
+      return results;
     }),
 });
 

@@ -45,38 +45,44 @@ export async function processHNPost(hnPostId: string, postText: string): Promise
     workflowId: `links-${hnPostId}`,
   });
 
-  const results: any[] = [];
-  
   if (urls && urls.length > 0) {
-    for (const url of urls) {
+    console.log(`[Post ${hnPostId}] Found ${urls.length} potential job links. Processing in parallel...`);
+    
+    // Step 2 & 3: Process all links in parallel
+    const processingPromises = urls.map(async (url, index) => {
       try {
-        // Step 2: Crawl the link
+        const uniqueId = `${hnPostId}-${index}`;
+        
+        // Crawl the link
         const rawContent = await executeChild(crawlPageWorkflow, {
           args: [url, hnPostId],
-          workflowId: `crawl-${hnPostId}-${url.slice(-10)}`,
+          workflowId: `crawl-${uniqueId}`,
         });
 
-        // Step 3: Enrich and persist
-        const result = await executeChild(enrichAndPersistWorkflow, {
+        // Enrich and persist
+        return await executeChild(enrichAndPersistWorkflow, {
           args: [rawContent, hnPostId, 'LINK'],
-          workflowId: `enrich-${hnPostId}-${url.slice(-10)}`,
+          workflowId: `enrich-${uniqueId}`,
         });
-        
-        results.push(result);
       } catch (error: any) {
         console.warn(`[Post ${hnPostId}] Failed to process link ${url}: ${error.message}`);
+        return null;
       }
+    });
+
+    const results = await Promise.all(processingPromises);
+    const successfulResults = results.filter(r => r !== null);
+
+    if (successfulResults.length > 0) {
+      return successfulResults;
     }
   }
 
   // Fallback: If no links successfully processed, process post content directly
-  if (results.length === 0) {
-    const result = await executeChild(enrichAndPersistWorkflow, {
-      args: [postText, hnPostId, 'POST_CONTENT'],
-      workflowId: `enrich-fallback-${hnPostId}`,
-    });
-    results.push(result);
-  }
-
-  return results;
+  console.log(`[Post ${hnPostId}] No links processed. Falling back to post content...`);
+  const result = await executeChild(enrichAndPersistWorkflow, {
+    args: [postText, hnPostId, 'POST_CONTENT'],
+    workflowId: `enrich-fallback-${hnPostId}`,
+  });
+  return [result];
 }
