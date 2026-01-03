@@ -21,7 +21,7 @@ class JobPosting {
   location string
   remote_status RemoteStatus
   role_level RoleLevel
-  management_level int
+  management_level int?
   technologies string[]
 }
 

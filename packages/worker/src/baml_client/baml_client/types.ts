@@ -70,7 +70,7 @@ export interface JobPosting {
   location: string
   remote_status: RemoteStatus
   role_level: RoleLevel
-  is_manager: boolean
+  management_level?: number | null
   technologies: string[]
   
 }

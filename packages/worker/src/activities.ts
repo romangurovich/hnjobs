@@ -112,6 +112,8 @@ export async function persistJobData(jobData: any, rawContent: string, hnPostId:
 
       ...jobData,
 
+      management_level: jobData.management_level ?? 0, // Default to IC
+
       raw_content: rawContent,
 
       hn_post_id: hnPostId,
@@ -119,6 +121,8 @@ export async function persistJobData(jobData: any, rawContent: string, hnPostId:
       processed_from: processedFrom,
 
     });
+
+
 
     console.log(`Successfully persisted job with ID: ${result.id}`);
 

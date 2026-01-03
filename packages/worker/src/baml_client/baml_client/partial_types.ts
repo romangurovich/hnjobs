@@ -46,7 +46,7 @@ export namespace partial_types {
       location?: string | null
       remote_status?: types.RemoteStatus | null
       role_level?: types.RoleLevel | null
-      is_manager?: boolean | null
+      management_level?: number | null
       technologies: string[]
     }
 }
