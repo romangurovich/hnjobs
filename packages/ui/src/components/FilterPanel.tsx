@@ -1,16 +1,26 @@
 import { useFilterStore, type RoleLevel, type RemoteStatus } from '../lib/store';
-import { Search, X } from 'lucide-react';
+import { Search, X, DollarSign } from 'lucide-react';
+import * as Slider from '@radix-ui/react-slider';
 
 export function FilterPanel() {
   const { 
     searchQuery, setSearchQuery, 
     roleLevels, toggleRoleLevel,
     remoteStatuses, toggleRemoteStatus,
+    minSalary, setMinSalary,
     resetFilters
   } = useFilterStore();
 
   const levels: RoleLevel[] = ['JUNIOR', 'MID', 'SENIOR', 'STAFF', 'PRINCIPAL', 'MANAGER'];
   const remotes: RemoteStatus[] = ['REMOTE_ONLY', 'HYBRID', 'ON_SITE'];
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(val);
+  };
 
   return (
     <aside className="w-full lg:w-64 space-y-8 bg-white p-6 rounded-lg border border-gray-200 h-fit">
@@ -23,7 +33,7 @@ export function FilterPanel() {
 
       {/* Search */}
       <div className="space-y-3">
-        <label className="text-sm font-semibold uppercase tracking-wider text-gray-500">Search</label>
+        <label className="text-sm font-semibold uppercase tracking-wider text-gray-500 text-[10px]">Search</label>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           <input
@@ -36,9 +46,36 @@ export function FilterPanel() {
         </div>
       </div>
 
+      {/* Salary Slider */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-end">
+          <label className="text-sm font-semibold uppercase tracking-wider text-gray-500 text-[10px]">Min Salary</label>
+          <span className="text-sm font-bold text-primary">{formatCurrency(minSalary || 0)}</span>
+        </div>
+        <Slider.Root
+          className="relative flex items-center select-none touch-none w-full h-5"
+          value={[minSalary || 0]}
+          max={500000}
+          step={10000}
+          onValueChange={([value]) => setMinSalary(value === 0 ? null : value)}
+        >
+          <Slider.Track className="bg-gray-100 relative grow rounded-full h-[4px]">
+            <Slider.Range className="absolute bg-primary rounded-full h-full" />
+          </Slider.Track>
+          <Slider.Thumb
+            className="block w-5 h-5 bg-white border-2 border-primary shadow-sm rounded-[10px] hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            aria-label="Minimum Salary"
+          />
+        </Slider.Root>
+        <div className="flex justify-between text-[10px] text-gray-400 font-bold uppercase">
+          <span>$0</span>
+          <span>$500k+</span>
+        </div>
+      </div>
+
       {/* Role Level */}
       <div className="space-y-3">
-        <label className="text-sm font-semibold uppercase tracking-wider text-gray-500">Role Level</label>
+        <label className="text-sm font-semibold uppercase tracking-wider text-gray-500 text-[10px]">Role Level</label>
         <div className="space-y-2">
           {levels.map((level) => (
             <label key={level} className="flex items-center gap-3 cursor-pointer group">
@@ -58,7 +95,7 @@ export function FilterPanel() {
 
       {/* Remote Status */}
       <div className="space-y-3">
-        <label className="text-sm font-semibold uppercase tracking-wider text-gray-500">Remote</label>
+        <label className="text-sm font-semibold uppercase tracking-wider text-gray-500 text-[10px]">Remote</label>
         <div className="space-y-2">
           {remotes.map((status) => (
             <label key={status} className="flex items-center gap-3 cursor-pointer group">

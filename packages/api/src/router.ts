@@ -61,6 +61,7 @@ const jobRouter = router({
       search: z.string().optional(),
       roleLevels: z.array(z.string()).optional(),
       remoteStatuses: z.array(z.string()).optional(),
+      minSalary: z.number().nullable().optional(),
     }).optional())
     .query(async ({ input, ctx }) => {
       let query = 'SELECT * FROM jobs';
@@ -83,6 +84,11 @@ const jobRouter = router({
         const placeholders = input.remoteStatuses.map(() => '?').join(',');
         conditions.push(`remote_status IN (${placeholders})`);
         params.push(...input.remoteStatuses);
+      }
+
+      if (input?.minSalary) {
+        conditions.push('salary_max >= ?');
+        params.push(input.minSalary);
       }
 
       if (conditions.length > 0) {

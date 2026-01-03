@@ -5,12 +5,13 @@ import { JobCard } from './components/JobCard';
 import { Loader2 } from 'lucide-react';
 
 function App() {
-  const { searchQuery, roleLevels, remoteStatuses } = useFilterStore();
+  const { searchQuery, roleLevels, remoteStatuses, minSalary } = useFilterStore();
 
   const { data: jobs, isLoading, error } = trpc.job.list.useQuery({
     search: searchQuery || undefined,
     roleLevels: roleLevels.length > 0 ? roleLevels : undefined,
     remoteStatuses: remoteStatuses.length > 0 ? remoteStatuses : undefined,
+    minSalary: minSalary || undefined,
   });
 
   return (
