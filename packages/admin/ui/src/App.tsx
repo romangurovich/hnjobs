@@ -2,6 +2,18 @@ import { useState } from 'react';
 import { trpc } from './lib/trpc';
 import './App.css';
 
+const stripHtml = (html: string) => {
+  return html
+    .replace(/<p>/gi, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>?/gm, '')
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&#x27;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+};
+
 function App() {
   const [url, setUrl] = useState('');
   const [isTriggering, setIsTriggering] = useState(false);
@@ -117,10 +129,11 @@ function App() {
                   <button 
                     onClick={() => {
                       setIsTriggering(true);
+                      const plainText = stripHtml(post.text);
                       fetch('http://localhost:8081/trigger-workflow', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ hnPostId: post.id, postText: post.text })
+                        body: JSON.stringify({ hnPostId: post.id, postText: plainText })
                       })
                       .then(async res => {
                         const data = await res.json();
