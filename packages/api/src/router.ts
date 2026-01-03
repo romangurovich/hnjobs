@@ -65,16 +65,12 @@ const jobRouter = router({
       remoteStatuses: z.array(z.string()).optional(),
       minSalary: z.number().nullable().optional(),
       technologies: z.array(z.string()).optional(),
+      page: z.number().default(1),
+      pageSize: z.number().default(10),
+      sortBy: z.enum(['created_at', 'salary_max', 'company_name']).default('created_at'),
+      sortOrder: z.enum(['asc', 'desc']).default('desc'),
     }).optional())
     .query(async ({ input, ctx }) => {
-      let query = `
-        SELECT 
-          j.*, 
-          GROUP_CONCAT(t.name) as technologies_list
-        FROM jobs j
-        LEFT JOIN job_technologies jt ON j.id = jt.job_id
-        LEFT JOIN technologies t ON jt.technology_id = t.id
-      `;
       let conditions: string[] = [];
       let params: any[] = [];
 
@@ -111,18 +107,46 @@ const jobRouter = router({
         params.push(...input.technologies);
       }
 
-      if (conditions.length > 0) {
-        query += ' WHERE ' + conditions.join(' AND ');
-      }
+      const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
 
-      query += ' GROUP BY j.id ORDER BY j.created_at DESC';
+      // 1. Get total count
+      const countResult = await ctx.db.prepare(
+        `SELECT COUNT(*) as total FROM jobs j${whereClause}`
+      ).bind(...params).first<{ total: number }>();
+      const total = countResult?.total ?? 0;
 
-      const { results } = await ctx.db.prepare(query).bind(...params).all();
+      // 2. Get paginated results
+      const page = input?.page ?? 1;
+      const pageSize = input?.pageSize ?? 10;
+      const sortBy = input?.sortBy ?? 'created_at';
+      const sortOrder = input?.sortOrder ?? 'desc';
+      const offset = (page - 1) * pageSize;
+
+      let query = `
+        SELECT 
+          j.*, 
+          GROUP_CONCAT(t.name) as technologies_list
+        FROM jobs j
+        LEFT JOIN job_technologies jt ON j.id = jt.job_id
+        LEFT JOIN technologies t ON jt.technology_id = t.id
+        ${whereClause}
+        GROUP BY j.id 
+        ORDER BY j.${sortBy} ${sortOrder.toUpperCase()}
+        LIMIT ? OFFSET ?
+      `;
+
+      const { results } = await ctx.db.prepare(query).bind(...params, pageSize, offset).all();
       
-      return results.map((job: any) => ({
-        ...job,
-        technologies: job.technologies_list ? job.technologies_list.split(',') : [],
-      }));
+      return {
+        jobs: results.map((job: any) => ({
+          ...job,
+          technologies: job.technologies_list ? job.technologies_list.split(',') : [],
+        })),
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      };
     }),
 
   getTechnologies: publicProcedure

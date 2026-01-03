@@ -2,18 +2,32 @@ import { trpc } from './lib/trpc';
 import { useFilterStore } from './lib/store';
 import { FilterPanel } from './components/FilterPanel';
 import { JobCard } from './components/JobCard';
+import { SortControls } from './components/SortControls';
+import { Pagination } from './components/Pagination';
 import { Loader2 } from 'lucide-react';
 
 function App() {
-  const { searchQuery, roleLevels, remoteStatuses, minSalary, technologies } = useFilterStore();
+  const { 
+    searchQuery, roleLevels, remoteStatuses, 
+    minSalary, technologies, page, pageSize, 
+    sortBy, sortOrder, setPage 
+  } = useFilterStore();
 
-  const { data: jobs, isLoading, error } = trpc.job.list.useQuery({
+  const { data, isLoading, error } = trpc.job.list.useQuery({
     search: searchQuery || undefined,
     roleLevels: roleLevels.length > 0 ? roleLevels : undefined,
     remoteStatuses: remoteStatuses.length > 0 ? remoteStatuses : undefined,
     minSalary: minSalary || undefined,
     technologies: technologies.length > 0 ? technologies : undefined,
+    page,
+    pageSize,
+    sortBy,
+    sortOrder,
   });
+
+  const jobs = data?.jobs || [];
+  const total = data?.total || 0;
+  const totalPages = data?.totalPages || 0;
 
   return (
     <div className="min-h-screen">
@@ -24,44 +38,53 @@ function App() {
             <div className="bg-primary text-white p-1.5 rounded font-bold text-lg">HN</div>
             <h1 className="text-xl font-extrabold tracking-tight">Jobs Board</h1>
           </div>
-          <div className="text-sm text-gray-500 font-medium">
+          <div className="text-sm text-gray-500 font-medium hidden sm:block">
             Enriched listings from Hacker News
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:row gap-8">
         {/* Sidebar */}
         <FilterPanel />
 
         {/* Job List */}
         <main className="flex-1">
-          <div className="mb-6 flex justify-between items-center">
+          <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h2 className="text-lg font-bold text-gray-900">
-              {jobs ? `${jobs.length} Job Postings found` : 'Searching jobs...'}
+              {isLoading ? 'Searching jobs...' : `${total} Job Postings found`}
             </h2>
+            <SortControls />
           </div>
 
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
               <Loader2 className="animate-spin mb-4" size={48} />
-              <p className="text-lg">Fetching latest opportunities...</p>
+              <p className="text-lg font-medium">Fetching latest opportunities...</p>
             </div>
           ) : error ? (
             <div className="bg-red-50 border border-red-100 text-red-700 p-6 rounded-lg">
-              <h3 className="font-bold mb-2">Error loading jobs</h3>
+              <h3 className="font-bold mb-2 text-lg">Error loading jobs</h3>
               <p>{error.message}</p>
             </div>
-          ) : jobs && jobs.length > 0 ? (
-            <div className="grid grid-cols-1 gap-6">
-              {jobs.map((job: any) => (
-                <JobCard key={job.id} job={job} />
-              ))}
-            </div>
+          ) : jobs.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 gap-6">
+                {jobs.map((job: any) => (
+                  <JobCard key={job.id} job={job} />
+                ))}
+              </div>
+              
+              <Pagination 
+                page={page} 
+                totalPages={totalPages} 
+                onPageChange={(p) => setPage(p)} 
+              />
+            </>
           ) : (
             <div className="bg-white border border-gray-200 rounded-lg p-12 text-center text-gray-500">
-              <p className="text-lg">No jobs matching your filters found.</p>
+              <p className="text-lg font-medium">No jobs matching your filters found.</p>
               <button 
                 onClick={() => useFilterStore.getState().resetFilters()}
                 className="mt-4 text-primary font-bold hover:underline"
