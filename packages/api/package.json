@@ -1,0 +1,14 @@
+{
+  "name": "@hnjobs/api",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "dependencies": {
+    "@hono/trpc-server": "^0.4.1",
+    "hono": "^4.11.3",
+    "zod": "^4.3.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260103.0"
+  }
+}
