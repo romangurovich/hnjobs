@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { publicProcedure, router } from './t';
-import { temporalClient } from './temporal';
+import { getTemporalClient } from './temporal';
 import { nanoid } from 'nanoid';
 
 const jobRouter = router({
@@ -9,6 +9,7 @@ const jobRouter = router({
       url: z.string().url(),
     }))
     .mutation(async ({ input }) => {
+      const temporalClient = getTemporalClient();
       const workflowId = `job-${nanoid()}`;
 
       await temporalClient.workflow.start('crawlAndProcessJob', {
