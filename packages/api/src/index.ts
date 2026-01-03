@@ -5,13 +5,14 @@ import { appRouter } from './router';
 
 const app = new Hono();
 
-// Add CORS middleware
+// Add a more permissive CORS middleware for development
 app.use(
   '/trpc/*',
   cors({
-    origin: 'http://localhost:5173', // Allow the UI dev server
+    origin: (origin) => origin, // Reflects the request origin
     allowHeaders: ['Content-Type'],
     allowMethods: ['GET', 'POST', 'OPTIONS'],
+    credentials: true,
   })
 );
 
