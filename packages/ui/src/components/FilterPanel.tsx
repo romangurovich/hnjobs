@@ -1,4 +1,4 @@
-import { useFilterStore, RoleLevel, RemoteStatus } from '../lib/store';
+import { useFilterStore, type RoleLevel, type RemoteStatus } from '../lib/store';
 import { Search, X } from 'lucide-react';
 
 export function FilterPanel() {
