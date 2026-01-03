@@ -23,7 +23,7 @@ function App() {
         body: JSON.stringify({ url }),
       });
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to start workflow');
@@ -67,7 +67,7 @@ function App() {
       </section>
 
       <section>
-        <div style={{ display: 'flex', justifyBetween: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2>Recently Processed Jobs</h2>
           <button onClick={() => refetchJobs()} style={{ marginLeft: 'auto', padding: '6px 12px', fontSize: '12px' }}>Refresh</button>
         </div>
