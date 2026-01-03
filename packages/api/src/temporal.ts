@@ -1,7 +1,7 @@
 // This file will now provide a service to interact with the Temporal HTTP API proxy
 // as Cloudflare Workers cannot directly use the Temporal client (gRPC).
 
-const TEMPORAL_HTTP_API_PROXY_URL = 'http://localhost:8080'; // Placeholder - user needs to set this up
+const TEMPORAL_HTTP_API_PROXY_URL = 'http://localhost:8233'; // Corrected: Temporal Web UI acts as proxy
 
 interface StartWorkflowOptions {
   workflowId: string;
