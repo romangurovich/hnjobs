@@ -7,7 +7,25 @@ function App() {
   const [isTriggering, setIsTriggering] = useState(false);
   const [triggerMessage, setTriggerMessage] = useState('');
 
+  const [hnPosts, setHnPosts] = useState<any[]>([]);
+  const [isHnLoading, setIsHnLoading] = useState(true);
+  const [hnThreadInfo, setHnThreadInfo] = useState<{ id: string; title: string } | null>(null);
+
   const { data: jobs, isLoading: isJobsLoading, refetch: refetchJobs } = trpc.job.list.useQuery();
+
+  useState(() => {
+    fetch('http://localhost:8081/hn/latest-posts')
+      .then(res => res.json())
+      .then(data => {
+        setHnPosts(data.posts || []);
+        setHnThreadInfo({ id: data.threadId, title: data.threadTitle });
+        setIsHnLoading(false);
+      })
+      .catch(err => {
+        console.error('Error fetching HN posts:', err);
+        setIsHnLoading(false);
+      });
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +82,48 @@ function App() {
           </button>
         </form>
         {triggerMessage && <p style={{ marginTop: '16px', fontWeight: 'bold', color: triggerMessage.startsWith('Error') ? 'red' : 'green' }}>{triggerMessage}</p>}
+      </section>
+
+      <section style={{ marginBottom: '60px' }}>
+        <h2>Latest HN Posts Preview {hnThreadInfo && `(${hnThreadInfo.title})`}</h2>
+        {isHnLoading ? (
+          <p>Loading latest HN posts...</p>
+        ) : (
+          <div style={{ 
+            maxHeight: '500px', 
+            overflowY: 'auto', 
+            border: '1px solid #eee', 
+            borderRadius: '8px',
+            padding: '16px',
+            textAlign: 'left',
+            backgroundColor: '#fff'
+          }}>
+            {hnPosts.map((post) => (
+              <div key={post.id} style={{ 
+                marginBottom: '24px', 
+                paddingBottom: '16px', 
+                borderBottom: '1px solid #f0f0f0' 
+              }}>
+                <div style={{ marginBottom: '8px', fontSize: '14px', color: '#666' }}>
+                  <strong>{post.by}</strong> | {new Date(post.time * 1000).toLocaleString()} | 
+                  <a 
+                    href={`https://news.ycombinator.com/item?id=${post.id}`} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    style={{ marginLeft: '8px', color: '#ff6600' }}
+                  >
+                    Original
+                  </a>
+                </div>
+                <div 
+                  className="hn-post-text"
+                  dangerouslySetInnerHTML={{ __html: post.text }} 
+                  style={{ fontSize: '15px', lineHeight: '1.5' }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section>

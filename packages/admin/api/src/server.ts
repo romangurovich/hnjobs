@@ -11,6 +11,47 @@ app.use(cors({ origin: 'http://localhost:5175' })); // Assuming admin UI runs on
 
 const temporalClient = new Client();
 
+app.get('/hn/latest-posts', async (req, res) => {
+  try {
+    console.log('Fetching latest "Who is hiring" thread ID...');
+    const searchResponse = await fetch(
+      'http://hn.algolia.com/api/v1/search_by_date?query=Ask%20HN:%20Who%20is%20hiring?&tags=story&hitsPerPage=1'
+    );
+    const searchData = await searchResponse.json() as any;
+    
+    if (!searchData.hits || searchData.hits.length === 0) {
+      return res.status(404).json({ error: 'No "Who is hiring" thread found.' });
+    }
+
+    const threadId = searchData.hits[0].objectID;
+    console.log(`Found thread ID: ${threadId}`);
+
+    const threadResponse = await fetch(`https://hacker-news.firebaseio.com/v0/item/${threadId}.json`);
+    const threadData = await threadResponse.json() as any;
+
+    if (!threadData.kids || threadData.kids.length === 0) {
+      return res.json({ threadId, posts: [] });
+    }
+
+    // Fetch the first 20 comments for preview
+    const postIds = threadData.kids.slice(0, 20);
+    const postPromises = postIds.map(async (id: number) => {
+      const response = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
+      return response.json();
+    });
+
+    const posts = await Promise.all(postPromises);
+    res.json({
+      threadId,
+      threadTitle: threadData.title,
+      posts: posts.filter(p => p !== null && !p.deleted && !p.dead)
+    });
+  } catch (error) {
+    console.error('Error fetching HN posts:', error);
+    res.status(500).json({ error: 'Failed to fetch HN posts' });
+  }
+});
+
 app.post('/trigger-workflow', async (req, res) => {
   const { url } = req.body;
 
