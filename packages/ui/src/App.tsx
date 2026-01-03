@@ -1,35 +1,31 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+
+import './App.css';
+import { trpc } from './lib/trpc';
+import { useFilterStore } from './lib/store';
 
 function App() {
-  const [count, setCount] = useState(0)
+  // Example of using the tRPC hook (will fail until backend is connected)
+  // const { data, isLoading, error } = trpc.job.list.useQuery();
+
+  // Example of using the Zustand store
+  const { searchQuery, setSearchQuery } = useFilterStore();
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div>
+      <h1>HN Jobs Board</h1>
+      <main>
+        {/* We will add FilterPanel, JobList, etc. here */}
+        <p>This is where the job board will be.</p>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search..."
+        />
+        <p>Current search query: {searchQuery}</p>
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default App;
