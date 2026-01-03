@@ -5,6 +5,7 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "node -r @swc-node/register src/index.ts",
+    "dev:watch": "node --watch -r @swc-node/register src/index.ts",
     "bundle": "bun run src/bundle.ts"
   },
   "dependencies": {
