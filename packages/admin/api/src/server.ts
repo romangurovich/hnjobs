@@ -4,7 +4,7 @@ import { Client } from '@temporalio/client';
 import { nanoid } from 'nanoid';
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 // For local development, allow requests from the admin UI
 app.use(cors({ origin: 'http://localhost:5175' })); // Assuming admin UI runs on 5175
@@ -53,6 +53,11 @@ app.get('/hn/latest-posts', async (req, res) => {
 });
 
 app.post('/trigger-workflow', async (req, res) => {
+  console.log('Received /trigger-workflow request:', { 
+    url: req.body.url, 
+    hnPostId: req.body.hnPostId, 
+    postTextLength: req.body.postText?.length 
+  });
   const { url, hnPostId, postText } = req.body;
 
   if (!url && (!hnPostId || !postText)) {
