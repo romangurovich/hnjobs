@@ -9,4 +9,4 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "hnjobs-db"
-database_id = "YOUR_DATABASE_ID_HERE" # Replace with your actual database_id
+database_id = "4b9236d5-bae7-4daf-baa8-ad50a90382f9"

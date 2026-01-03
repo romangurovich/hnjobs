@@ -1,1 +1,9 @@
-/* We will add our own styles here */
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #ff6600; /* HN Orange */
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 font-sans;
+}

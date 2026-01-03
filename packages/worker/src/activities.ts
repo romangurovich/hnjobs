@@ -13,23 +13,33 @@ export async function scrapePage(url: string): Promise<string> {
   try {
     const page = await browser.newPage();
     
-    // Set a reasonable timeout and wait for the page to be somewhat idle
+    // Use 'networkidle' to wait for the page to be fully loaded (including JS content)
     await page.goto(url, { 
-      waitUntil: 'domcontentloaded',
+      waitUntil: 'networkidle',
       timeout: 30000 
     });
 
-    // Extract the text content of the body, stripping out scripts and styles
-    const content = await page.evaluate(() => {
-      // Remove elements that don't contain useful text content
+    // Extract the text content
+    let content = await page.evaluate(() => {
       const toRemove = ['script', 'style', 'noscript', 'iframe', 'header', 'footer', 'nav'];
       toRemove.forEach(tag => {
         const elements = document.querySelectorAll(tag);
         elements.forEach(el => el.remove());
       });
 
-      return document.body.innerText;
+      return document.body.innerText.trim();
     });
+
+    // Fallback: if innerText is empty, try a broader extraction
+    if (!content) {
+      console.warn('innerText was empty, trying fallback extraction...');
+      content = await page.textContent('body') ?? '';
+      content = content.trim();
+    }
+
+    if (!content) {
+      throw new Error('Failed to extract any text content from the page.');
+    }
 
     console.log(`Successfully scraped ${content.length} characters from ${url}`);
     return content;

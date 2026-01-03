@@ -57,22 +57,40 @@ const jobRouter = router({
   list: publicProcedure
     .input(z.object({
       search: z.string().optional(),
+      roleLevels: z.array(z.string()).optional(),
+      remoteStatuses: z.array(z.string()).optional(),
     }).optional())
     .query(async ({ input, ctx }) => {
       let query = 'SELECT * FROM jobs';
+      let conditions: string[] = [];
       let params: any[] = [];
 
       if (input?.search) {
-        query += ' WHERE company_name LIKE ? OR job_title LIKE ?';
+        conditions.push('(company_name LIKE ? OR job_title LIKE ?)');
         const searchPattern = `%${input.search}%`;
         params.push(searchPattern, searchPattern);
+      }
+
+      if (input?.roleLevels && input.roleLevels.length > 0) {
+        const placeholders = input.roleLevels.map(() => '?').join(',');
+        conditions.push(`role_level IN (${placeholders})`);
+        params.push(...input.roleLevels);
+      }
+
+      if (input?.remoteStatuses && input.remoteStatuses.length > 0) {
+        const placeholders = input.remoteStatuses.map(() => '?').join(',');
+        conditions.push(`remote_status IN (${placeholders})`);
+        params.push(...input.remoteStatuses);
+      }
+
+      if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
       }
 
       query += ' ORDER BY created_at DESC';
 
       const { results } = await ctx.db.prepare(query).bind(...params).all();
       
-      // Note: In a real app, we'd also fetch and join the technologies here
       return results;
     }),
 });

@@ -3,7 +3,11 @@ import { cors } from 'hono/cors';
 import { trpcServer } from '@hono/trpc-server';
 import { appRouter } from './router';
 
-const app = new Hono();
+type Bindings = {
+  DB: D1Database;
+};
+
+const app = new Hono<{ Bindings: Bindings }>();
 
 // Add CORS middleware
 app.use(
@@ -20,9 +24,14 @@ app.use(
   '/trpc/*',
   trpcServer({
     router: appRouter,
-    createContext: (opts, c) => ({
-      db: c.env.DB,
-    }),
+    createContext: (opts, c) => {
+      if (!c.env.DB) {
+        console.error('D1 Database binding "DB" is missing!');
+      }
+      return {
+        db: c.env.DB,
+      };
+    },
   })
 );
 
