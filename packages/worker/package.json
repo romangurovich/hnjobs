@@ -4,7 +4,7 @@
   "private": true,
   "main": "src/index.ts",
   "scripts": {
-    "dev": "bun run src/index.ts",
+    "dev": "node -r @swc-node/register src/index.ts",
     "bundle": "bun run src/bundle.ts"
   },
   "dependencies": {
@@ -15,6 +15,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.28.5",
-    "@babel/preset-typescript": "^7.28.5"
+    "@babel/preset-typescript": "^7.28.5",
+    "@swc-node/register": "^1.11.1",
+    "@swc/core": "^1.15.8"
   }
 }

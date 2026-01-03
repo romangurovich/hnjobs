@@ -26,8 +26,8 @@ async function run() {
   });
 
   // Step 2: Start the worker
+  console.log('Worker started and polling the "hn-jobs" queue...');
   await worker.run();
-  console.log('Worker started');
 }
 
 run().catch((err) => {
