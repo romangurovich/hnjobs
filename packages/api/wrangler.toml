@@ -1,6 +1,7 @@
 name = "hnjobs-api"
 main = "src/index.ts"
 compatibility_date = "2024-01-01" # Adjust as needed
+compatibility_flags = ["nodejs_compat"]
 
 [vars]
 # Add environment variables here if needed
