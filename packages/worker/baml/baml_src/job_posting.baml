@@ -29,7 +29,12 @@ function ExtractJobPosting(raw_text: string) -> JobPosting {
   client OpenRouter
   prompt #"
     Extract the job posting information from the following text. 
-    Provide a concise one-sentence summary of the role in the 'summary' field.
+    
+    Provide a comprehensive paragraph-length summary in the 'summary' field.
+    The summary should:
+    - Clearly explain what the company does and its mission.
+    - Detail the specific responsibilities and impact the applicant will have.
+    - Highlight what makes this specific opportunity unique or compelling for a technical candidate.
 
     {{ raw_text }}
 
