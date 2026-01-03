@@ -25,9 +25,11 @@ export function JobCard({ job }: JobCardProps) {
       </div>
 
       {job.summary && (
-        <p className="text-gray-700 text-sm mb-4 leading-relaxed italic">
-          "{job.summary}"
-        </p>
+        <div className="bg-gray-50 border-l-4 border-primary/30 p-4 mb-6 rounded-r-md">
+          <p className="text-gray-700 text-sm leading-relaxed">
+            {job.summary}
+          </p>
+        </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6 text-gray-600 text-sm">
