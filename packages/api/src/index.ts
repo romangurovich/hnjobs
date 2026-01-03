@@ -13,9 +13,13 @@ const app = new Hono<{ Bindings: Bindings }>();
 app.use(
   '/trpc/*',
   cors({
-    origin: 'http://localhost:5174', // Allow the specific UI dev server origin
+    origin: (origin) => {
+      const allowedOrigins = ['http://localhost:5174', 'http://localhost:5175'];
+      return allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+    },
     allowHeaders: ['Content-Type'],
     allowMethods: ['GET', 'POST', 'OPTIONS'],
+    credentials: true,
   })
 );
 

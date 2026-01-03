@@ -122,7 +122,14 @@ function App() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ hnPostId: post.id, postText: post.text })
                       })
-                      .then(res => res.json())
+                      .then(async res => {
+                        const data = await res.json();
+                        if (!res.ok) {
+                          console.error('Workflow trigger failed:', data);
+                          throw new Error(data.error || 'Failed to start workflow');
+                        }
+                        return data;
+                      })
                       .then(data => {
                         setTriggerMessage(`Workflow started for post ${post.id}: ${data.workflowId}`);
                         setTimeout(() => refetchJobs(), 3000);
