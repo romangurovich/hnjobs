@@ -47,6 +47,26 @@ export function all_succeeded<CheckName extends string>(checks: Record<CheckName
 export function get_checks<CheckName extends string>(checks: Record<CheckName, Check>): Check[] {
     return Object.values(checks)
 }
+export enum MetropolitanArea {
+  SAN_FRANCISCO_BAY_AREA = "SAN_FRANCISCO_BAY_AREA",
+  NEW_YORK_CITY = "NEW_YORK_CITY",
+  LONDON = "LONDON",
+  BERLIN = "BERLIN",
+  PARIS = "PARIS",
+  AMSTERDAM = "AMSTERDAM",
+  SINGAPORE = "SINGAPORE",
+  BANGALORE = "BANGALORE",
+  SEATTLE = "SEATTLE",
+  AUSTIN = "AUSTIN",
+  BOSTON = "BOSTON",
+  LOS_ANGELES = "LOS_ANGELES",
+  CHICAGO = "CHICAGO",
+  TORONTO = "TORONTO",
+  VANCOUVER = "VANCOUVER",
+  REMOTE = "REMOTE",
+  OTHER = "OTHER",
+}
+
 export enum RemoteStatus {
   REMOTE_ONLY = "REMOTE_ONLY",
   HYBRID = "HYBRID",
@@ -58,6 +78,8 @@ export enum RoleLevel {
   MID = "MID",
   SENIOR = "SENIOR",
   STAFF = "STAFF",
+  PRINCIPAL = "PRINCIPAL",
+  MANAGER = "MANAGER",
 }
 
 export interface JobPosting {
@@ -67,7 +89,7 @@ export interface JobPosting {
   salary_min?: number | null
   salary_max?: number | null
   salary_currency?: string | null
-  location: string
+  location: MetropolitanArea
   remote_status: RemoteStatus
   role_level: RoleLevel
   management_level?: number | null

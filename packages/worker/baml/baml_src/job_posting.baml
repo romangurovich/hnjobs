@@ -1,3 +1,23 @@
+enum MetropolitanArea {
+  SAN_FRANCISCO_BAY_AREA
+  NEW_YORK_CITY
+  LONDON
+  BERLIN
+  PARIS
+  AMSTERDAM
+  SINGAPORE
+  BANGALORE
+  SEATTLE
+  AUSTIN
+  BOSTON
+  LOS_ANGELES
+  CHICAGO
+  TORONTO
+  VANCOUVER
+  REMOTE
+  OTHER
+}
+
 enum RemoteStatus {
   REMOTE_ONLY
   HYBRID
@@ -9,6 +29,8 @@ enum RoleLevel {
   MID
   SENIOR
   STAFF
+  PRINCIPAL
+  MANAGER
 }
 
 class JobPosting {
@@ -18,7 +40,7 @@ class JobPosting {
   salary_min int?
   salary_max int?
   salary_currency string?
-  location string
+  location MetropolitanArea
   remote_status RemoteStatus
   role_level RoleLevel
   management_level int?
@@ -35,6 +57,15 @@ function ExtractJobPosting(raw_text: string) -> JobPosting {
     - Clearly explain what the company does and its mission.
     - Detail the specific responsibilities and impact the applicant will have.
     - Highlight what makes this specific opportunity unique or compelling for a technical candidate.
+
+    For 'location', standardize the identified city/region to one of the following MetropolitanArea values:
+    - SAN_FRANCISCO_BAY_AREA (includes SF, San Jose, Palo Alto, etc.)
+    - NEW_YORK_CITY (includes Brooklyn, Manhattan, etc.)
+    - LONDON, BERLIN, PARIS, AMSTERDAM, SINGAPORE, BANGALORE
+    - SEATTLE, AUSTIN, BOSTON, LOS_ANGELES, CHICAGO
+    - TORONTO, VANCOUVER
+    - REMOTE (only if NO physical location is mentioned)
+    - OTHER (if a location is mentioned but not in the list above)
 
     For 'management_level', provide an integer from 0 to 10:
     - 0: Pure Individual Contributor (no management responsibilities).

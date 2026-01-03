@@ -64,6 +64,7 @@ const jobRouter = router({
       search: z.string().optional(),
       roleLevels: z.array(z.string()).optional(),
       remoteStatuses: z.array(z.string()).optional(),
+      locations: z.array(z.string()).optional(),
       minSalary: z.number().nullable().optional(),
       technologies: z.array(z.string()).optional(),
       page: z.number().default(1),
@@ -91,6 +92,12 @@ const jobRouter = router({
         const placeholders = input.remoteStatuses.map(() => '?').join(',');
         conditions.push(`j.remote_status IN (${placeholders})`);
         params.push(...input.remoteStatuses);
+      }
+
+      if (input?.locations && input.locations.length > 0) {
+        const placeholders = input.locations.map(() => '?').join(',');
+        conditions.push(`j.location IN (${placeholders})`);
+        params.push(...input.locations);
       }
 
       if (input?.minSalary) {
@@ -159,6 +166,17 @@ const jobRouter = router({
         GROUP BY t.id
         ORDER BY job_count DESC
         LIMIT 50
+      `).all();
+      return results;
+    }),
+
+  getLocations: publicProcedure
+    .query(async ({ ctx }) => {
+      const { results } = await ctx.db.prepare(`
+        SELECT location as name, COUNT(*) as job_count
+        FROM jobs
+        GROUP BY location
+        ORDER BY job_count DESC
       `).all();
       return results;
     }),

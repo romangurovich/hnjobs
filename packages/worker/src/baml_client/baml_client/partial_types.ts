@@ -20,7 +20,7 @@ $ pnpm add @boundaryml/baml
 
 import type { Image, Audio, Pdf, Video } from "@boundaryml/baml"
 import type { Checked, Check } from "./types"
-import type {  JobPosting,  RemoteStatus,  RoleLevel } from "./types"
+import type {  JobPosting,  MetropolitanArea,  RemoteStatus,  RoleLevel } from "./types"
 import type * as types from "./types"
 
 /******************************************************************************
@@ -43,7 +43,7 @@ export namespace partial_types {
       salary_min?: number | null
       salary_max?: number | null
       salary_currency?: string | null
-      location?: string | null
+      location?: types.MetropolitanArea | null
       remote_status?: types.RemoteStatus | null
       role_level?: types.RoleLevel | null
       management_level?: number | null

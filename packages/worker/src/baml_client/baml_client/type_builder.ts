@@ -30,9 +30,11 @@ export default class TypeBuilder {
     JobPosting: ClassViewer<'JobPosting', "company_name" | "job_title" | "summary" | "salary_min" | "salary_max" | "salary_currency" | "location" | "remote_status" | "role_level" | "management_level" | "technologies">;
     
     
+    MetropolitanArea: EnumViewer<'MetropolitanArea', "SAN_FRANCISCO_BAY_AREA" | "NEW_YORK_CITY" | "LONDON" | "BERLIN" | "PARIS" | "AMSTERDAM" | "SINGAPORE" | "BANGALORE" | "SEATTLE" | "AUSTIN" | "BOSTON" | "LOS_ANGELES" | "CHICAGO" | "TORONTO" | "VANCOUVER" | "REMOTE" | "OTHER">;
+    
     RemoteStatus: EnumViewer<'RemoteStatus', "REMOTE_ONLY" | "HYBRID" | "ON_SITE">;
     
-    RoleLevel: EnumViewer<'RoleLevel', "JUNIOR" | "MID" | "SENIOR" | "STAFF">;
+    RoleLevel: EnumViewer<'RoleLevel', "JUNIOR" | "MID" | "SENIOR" | "STAFF" | "PRINCIPAL" | "MANAGER">;
     
 
     constructor() {
@@ -41,7 +43,7 @@ export default class TypeBuilder {
             "JobPosting",
           ]),
           enums: new Set([
-            "RemoteStatus","RoleLevel",
+            "MetropolitanArea","RemoteStatus","RoleLevel",
           ]),
           runtime: DO_NOT_USE_DIRECTLY_UNLESS_YOU_KNOW_WHAT_YOURE_DOING_RUNTIME
         });
@@ -51,12 +53,16 @@ export default class TypeBuilder {
         ]);
         
         
+        this.MetropolitanArea = this.tb.enumViewer("MetropolitanArea", [
+          "SAN_FRANCISCO_BAY_AREA","NEW_YORK_CITY","LONDON","BERLIN","PARIS","AMSTERDAM","SINGAPORE","BANGALORE","SEATTLE","AUSTIN","BOSTON","LOS_ANGELES","CHICAGO","TORONTO","VANCOUVER","REMOTE","OTHER",
+        ]);
+        
         this.RemoteStatus = this.tb.enumViewer("RemoteStatus", [
           "REMOTE_ONLY","HYBRID","ON_SITE",
         ]);
         
         this.RoleLevel = this.tb.enumViewer("RoleLevel", [
-          "JUNIOR","MID","SENIOR","STAFF",
+          "JUNIOR","MID","SENIOR","STAFF","PRINCIPAL","MANAGER",
         ]);
         
     }

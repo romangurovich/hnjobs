@@ -9,6 +9,7 @@ interface FilterState {
   remoteStatuses: RemoteStatus[];
   minSalary: number | null;
   technologies: string[];
+  locations: string[];
   sortBy: 'created_at' | 'salary_max' | 'company_name';
   sortOrder: 'asc' | 'desc';
   page: number;
@@ -19,6 +20,7 @@ interface FilterState {
   toggleRemoteStatus: (status: RemoteStatus) => void;
   setMinSalary: (salary: number | null) => void;
   toggleTechnology: (tech: string) => void;
+  toggleLocation: (location: string) => void;
   setSort: (by: FilterState['sortBy'], order: FilterState['sortOrder']) => void;
   setPage: (page: number) => void;
   resetFilters: () => void;
@@ -30,6 +32,7 @@ const initialState = {
   remoteStatuses: [],
   minSalary: null,
   technologies: [],
+  locations: [],
   sortBy: 'created_at' as const,
   sortOrder: 'desc' as const,
   page: 1,
@@ -62,6 +65,13 @@ export const useFilterStore = create<FilterState>((set) => ({
     technologies: state.technologies.includes(tech)
       ? state.technologies.filter((t) => t !== tech)
       : [...state.technologies, tech],
+  })),
+
+  toggleLocation: (location) => set((state) => ({
+    page: 1,
+    locations: state.locations.includes(location)
+      ? state.locations.filter((l) => l !== location)
+      : [...state.locations, location],
   })),
 
   setSort: (by, order) => set({ sortBy: by, sortOrder: order, page: 1 }),

@@ -9,7 +9,7 @@ import { Loader2 } from 'lucide-react';
 function App() {
   const { 
     searchQuery, roleLevels, remoteStatuses, 
-    minSalary, technologies, page, pageSize, 
+    minSalary, technologies, locations, page, pageSize, 
     sortBy, sortOrder, setPage 
   } = useFilterStore();
 
@@ -17,6 +17,7 @@ function App() {
     search: searchQuery || undefined,
     roleLevels: roleLevels.length > 0 ? roleLevels : undefined,
     remoteStatuses: remoteStatuses.length > 0 ? remoteStatuses : undefined,
+    locations: locations.length > 0 ? locations : undefined,
     minSalary: minSalary || undefined,
     technologies: technologies.length > 0 ? technologies : undefined,
     page,
