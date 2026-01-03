@@ -63,6 +63,7 @@ export enum RoleLevel {
 export interface JobPosting {
   company_name: string
   job_title: string
+  summary: string
   salary_min?: number | null
   salary_max?: number | null
   salary_currency?: string | null

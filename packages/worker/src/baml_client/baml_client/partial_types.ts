@@ -39,6 +39,7 @@ export namespace partial_types {
     export interface JobPosting {
       company_name?: string | null
       job_title?: string | null
+      summary?: string | null
       salary_min?: number | null
       salary_max?: number | null
       salary_currency?: string | null

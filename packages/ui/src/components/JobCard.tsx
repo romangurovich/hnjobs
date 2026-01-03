@@ -24,6 +24,12 @@ export function JobCard({ job }: JobCardProps) {
         </span>
       </div>
 
+      {job.summary && (
+        <p className="text-gray-700 text-sm mb-4 leading-relaxed italic">
+          "{job.summary}"
+        </p>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6 text-gray-600 text-sm">
         <div className="flex items-center gap-2">
           <MapPin size={16} />

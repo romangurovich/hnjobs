@@ -27,7 +27,7 @@ export { FieldType, EnumBuilder, ClassBuilder }
 export default class TypeBuilder {
     private tb: _TypeBuilder;
     
-    JobPosting: ClassViewer<'JobPosting', "company_name" | "job_title" | "salary_min" | "salary_max" | "salary_currency" | "location" | "remote_status" | "role_level" | "is_manager" | "technologies">;
+    JobPosting: ClassViewer<'JobPosting', "company_name" | "job_title" | "summary" | "salary_min" | "salary_max" | "salary_currency" | "location" | "remote_status" | "role_level" | "is_manager" | "technologies">;
     
     
     RemoteStatus: EnumViewer<'RemoteStatus', "REMOTE_ONLY" | "HYBRID" | "ON_SITE">;
@@ -47,7 +47,7 @@ export default class TypeBuilder {
         });
         
         this.JobPosting = this.tb.classViewer("JobPosting", [
-          "company_name","job_title","salary_min","salary_max","salary_currency","location","remote_status","role_level","is_manager","technologies",
+          "company_name","job_title","summary","salary_min","salary_max","salary_currency","location","remote_status","role_level","is_manager","technologies",
         ]);
         
         

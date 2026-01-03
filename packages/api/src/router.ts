@@ -15,6 +15,7 @@ const jobRouter = router({
       role_level: z.string(),
       is_manager: z.boolean(),
       technologies: z.array(z.string()),
+      summary: z.string().optional(),
       raw_content: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
@@ -24,12 +25,13 @@ const jobRouter = router({
       await ctx.db.prepare(`
         INSERT INTO jobs (
           id, company_name, job_title, salary_min, salary_max, 
-          salary_currency, location, remote_status, role_level, is_manager, raw_content
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          salary_currency, location, remote_status, role_level, is_manager, 
+          summary, raw_content
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         id, input.company_name, input.job_title, input.salary_min, input.salary_max,
         input.salary_currency, input.location, input.remote_status, input.role_level, 
-        input.is_manager ? 1 : 0, input.raw_content ?? null
+        input.is_manager ? 1 : 0, input.summary ?? null, input.raw_content ?? null
       ).run();
 
       // 2. Handle technologies (simple implementation)

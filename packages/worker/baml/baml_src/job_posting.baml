@@ -14,6 +14,7 @@ enum RoleLevel {
 class JobPosting {
   company_name string
   job_title string
+  summary string
   salary_min int?
   salary_max int?
   salary_currency string?
@@ -27,7 +28,9 @@ class JobPosting {
 function ExtractJobPosting(raw_text: string) -> JobPosting {
   client OpenRouter
   prompt #"
-    Extract the job posting information from the following text:
+    Extract the job posting information from the following text. 
+    Provide a concise one-sentence summary of the role in the 'summary' field.
+
     {{ raw_text }}
 
     {{ ctx.output_format }}

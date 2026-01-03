@@ -13,6 +13,7 @@ CREATE TABLE jobs (
   remote_status TEXT NOT NULL, -- REMOTE_ONLY, HYBRID, ON_SITE
   role_level TEXT NOT NULL,    -- JUNIOR, MID, SENIOR, STAFF
   is_manager BOOLEAN NOT NULL,
+  summary TEXT,
   raw_content TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
