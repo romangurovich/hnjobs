@@ -1,12 +1,19 @@
 {
-  "name": "@hnjobs/admin",
+  "name": "@hnjobs/admin-api",
   "version": "0.1.0",
   "private": true,
+  "main": "src/server.ts",
   "scripts": {
-    "start-workflow": "bun run src/trigger-workflow.ts"
+    "dev": "bun run src/server.ts"
   },
   "dependencies": {
     "@temporalio/client": "^1.14.0",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
     "nanoid": "^5.1.6"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6"
   }
 }
