@@ -1,0 +1,11 @@
+{
+  "name": "hnjobs",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
