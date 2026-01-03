@@ -20,7 +20,7 @@ $ pnpm add @boundaryml/baml
 
 const fileMap = {
   
-  "clients.baml": "client<llm> OpenRouter {\n  provider openai\n  options {\n    base_url \"https://openrouter.ai/api/v1\"\n    model \"x-ai/grok-2-1212\"\n    api_key env.OPENROUTER_API_KEY\n  }\n}\n",
+  "clients.baml": "client<llm> OpenRouter {\n  provider openai\n  options {\n    base_url \"https://openrouter.ai/api/v1\"\n    model \"xiaomi/mimo-v2-flash:free\"\n    api_key env.OPENROUTER_API_KEY\n  }\n}\n",
   "generators.baml": "generator target {\n  output_type \"typescript\"\n  output_dir \"../src/baml_client\"\n  version \"0.216.0\"\n}",
   "job_posting.baml": "enum RemoteStatus {\n  REMOTE_ONLY\n  HYBRID\n  ON_SITE\n}\n\nenum RoleLevel {\n  JUNIOR\n  MID\n  SENIOR\n  STAFF\n}\n\nclass JobPosting {\n  company_name string\n  job_title string\n  salary_min int?\n  salary_max int?\n  salary_currency string?\n  location string\n  remote_status RemoteStatus\n  role_level RoleLevel\n  is_manager bool\n  technologies string[]\n}\n\nfunction ExtractJobPosting(raw_text: string) -> JobPosting {\n  client OpenRouter\n  prompt #\"\n    Extract the job posting information from the following text:\n    {{ raw_text }}\n\n    {{ ctx.output_format }}\n  \"#\n}\n",
 }
