@@ -28,6 +28,14 @@ export function FilterPanel() {
     }).format(val);
   };
 
+  const formatLocation = (loc: string) => {
+    return loc
+      .toLowerCase()
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   return (
     <aside className="w-full lg:w-64 space-y-8 bg-white p-6 rounded-lg border border-gray-200 h-fit">
       <div className="flex justify-between items-center">
@@ -133,7 +141,7 @@ export function FilterPanel() {
                   className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
                 />
                 <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors">
-                  {loc.name.replace(/_/g, ' ')} <span className="text-[10px] opacity-50">({loc.job_count})</span>
+                  {formatLocation(loc.name)} <span className="text-[10px] opacity-50">({loc.job_count})</span>
                 </span>
               </label>
             ))}

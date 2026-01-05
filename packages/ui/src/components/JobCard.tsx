@@ -12,6 +12,14 @@ export function JobCard({ job }: JobCardProps) {
     return `${cur}${(min || max)!.toLocaleString()}+`;
   };
 
+  const formatLocation = (loc: string) => {
+    return loc
+      .toLowerCase()
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-4">
@@ -35,7 +43,7 @@ export function JobCard({ job }: JobCardProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6 text-gray-600 text-sm">
         <div className="flex items-center gap-2">
           <MapPin size={16} />
-          <span>{job.location} ({job.remote_status})</span>
+          <span>{formatLocation(job.location)} ({job.remote_status})</span>
         </div>
         <div className="flex items-center gap-2">
           <DollarSign size={16} />
