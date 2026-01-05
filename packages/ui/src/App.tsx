@@ -96,6 +96,23 @@ function App() {
           )}
         </main>
       </div>
+
+      {/* Footer */}
+      <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-gray-100 mt-12">
+        <div className="flex justify-center items-center text-sm text-gray-400">
+          <p>
+            Made by{' '}
+            <a 
+              href="https://0to1.pro/" 
+              target="_blank" 
+              rel="noreferrer"
+              className="text-gray-500 font-medium hover:text-primary transition-colors underline decoration-gray-200 underline-offset-4"
+            >
+              Roman (0to1.pro)
+            </a>
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
