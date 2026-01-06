@@ -11,6 +11,21 @@ app.use(cors({ origin: 'http://localhost:5175' })); // Assuming admin UI runs on
 
 const temporalClient = new Client();
 
+const API_BASE_URL = 'http://localhost:8787'; // In prod, this would be an env var
+
+async function fetchWithRetry(url: string, retries = 3, delay = 1000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
+
 app.get('/hn/latest-posts', async (req, res) => {
   try {
     console.log('Fetching latest "Who is hiring" thread ID...');
@@ -30,21 +45,60 @@ app.get('/hn/latest-posts', async (req, res) => {
     const threadData = await threadResponse.json() as any;
 
     if (!threadData.kids || threadData.kids.length === 0) {
-      return res.json({ threadId, posts: [] });
+      return res.json({
+        threadId,
+        threadTitle: threadData.title,
+        posts: [],
+        stats: { total: 0, processed: 0 }
+      });
     }
 
-    // Fetch the first 20 comments for preview
-    const postIds = threadData.kids.slice(0, 20);
-    const postPromises = postIds.map(async (id: number) => {
-      const response = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
-      return response.json();
-    });
+    const allPostIds: number[] = threadData.kids;
+    console.log(`Fetching details for ${allPostIds.length} posts...`);
 
-    const posts = await Promise.all(postPromises);
+    // 1. Check which posts are already processed
+    const input = JSON.stringify({ json: { hnPostIds: allPostIds.map(String) } });
+    const checkResponse = await fetch(`${API_BASE_URL}/trpc/job.checkExisting?input=${encodeURIComponent(input)}`);
+
+    const checkResult = await checkResponse.json() as any;
+    // tRPC response format: { result: { data: { existingIds: [...] } } }
+    const existingIds = new Set(checkResult.result?.data?.existingIds || []);
+
+    // 2. Fetch post details in batches
+    const BATCH_SIZE = 20;
+    const posts: any[] = [];
+
+    for (let i = 0; i < allPostIds.length; i += BATCH_SIZE) {
+      const batchIds = allPostIds.slice(i, i + BATCH_SIZE);
+      const batchPromises = batchIds.map(async (id: number) => {
+        try {
+          return await fetchWithRetry(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
+        } catch (e) {
+          console.error(`Failed to fetch post ${id}`, e);
+          return null;
+        }
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      posts.push(...batchResults.filter((p: any) => p !== null && !p.deleted && !p.dead));
+
+      // Small delay to be nice to HN API
+      await new Promise(r => setTimeout(r, 100));
+    }
+
+    const processedPosts = posts.map(p => ({
+      ...p,
+      isProcessed: existingIds.has(String(p.id))
+    }));
+
     res.json({
       threadId,
       threadTitle: threadData.title,
-      posts: posts.filter(p => p !== null && !p.deleted && !p.dead)
+      posts: processedPosts,
+      stats: {
+        total: processedPosts.length,
+        processed: processedPosts.filter(p => p.isProcessed).length
+      }
     });
   } catch (error) {
     console.error('Error fetching HN posts:', error);

@@ -32,17 +32,19 @@ function App() {
   const [triggerMessage, setTriggerMessage] = useState('');
 
   const [hnPosts, setHnPosts] = useState<any[]>([]);
+  const [hnStats, setHnStats] = useState<{ total: number; processed: number } | null>(null);
   const [isHnLoading, setIsHnLoading] = useState(true);
   const [hnThreadInfo, setHnThreadInfo] = useState<{ id: string; title: string } | null>(null);
 
-  const { data: jobs, isLoading: isJobsLoading, refetch: refetchJobs } = trpc.job.list.useQuery();
+  const { data: jobsResult, isLoading: isJobsLoading, refetch: refetchJobs } = trpc.job.list.useQuery();
 
   useEffect(() => {
     fetch('http://localhost:8081/hn/latest-posts')
       .then(res => res.json())
-      .then(data => {
+      .then((data: any) => {
         setHnPosts(data.posts || []);
         setHnThreadInfo({ id: data.threadId, title: data.threadTitle });
+        setHnStats(data.stats || null);
         setIsHnLoading(false);
       })
       .catch(err => {
@@ -82,6 +84,8 @@ function App() {
     }
   };
 
+  const recentJobs = jobsResult?.jobs || [];
+
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '40px' }}>
       <h1>HN Jobs - Admin</h1>
@@ -110,6 +114,15 @@ function App() {
 
       <section style={{ marginBottom: '60px' }}>
         <h2>Latest HN Posts Preview {hnThreadInfo && `(${hnThreadInfo.title})`}</h2>
+
+        {hnStats && (
+          <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#e0f7fa', borderRadius: '8px', display: 'flex', gap: '24px' }}>
+             <div><strong>Total Posts:</strong> {hnStats.total}</div>
+             <div><strong>Processed:</strong> {hnStats.processed}</div>
+             <div><strong>Remaining:</strong> {hnStats.total - hnStats.processed}</div>
+          </div>
+        )}
+
         {isHnLoading ? (
           <p>Loading latest HN posts...</p>
         ) : (
@@ -138,35 +151,51 @@ function App() {
                   >
                     Original
                   </a>
-                  <button 
-                    onClick={() => {
-                      setIsTriggering(true);
-                      const plainText = stripHtml(post.text);
-                      fetch('http://localhost:8081/trigger-workflow', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ hnPostId: post.id, postText: plainText })
-                      })
-                      .then(async res => {
-                        const data = await res.json();
-                        if (!res.ok) {
-                          console.error('Workflow trigger failed:', data);
-                          throw new Error(data.error || 'Failed to start workflow');
-                        }
-                        return data;
-                      })
-                      .then(data => {
-                        setTriggerMessage(`Workflow started for post ${post.id}: ${data.workflowId}`);
-                        setTimeout(() => refetchJobs(), 3000);
-                      })
-                      .catch(err => setTriggerMessage(`Error: ${err.message}`))
-                      .finally(() => setIsTriggering(false));
-                    }}
-                    disabled={isTriggering}
-                    style={{ padding: '2px 8px', fontSize: '12px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                  >
-                    Process
-                  </button>
+                  {post.isProcessed ? (
+                    <span style={{
+                      padding: '2px 8px',
+                      fontSize: '12px',
+                      backgroundColor: '#e0e0e0',
+                      color: '#666',
+                      borderRadius: '4px',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      ✅ Processed
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setIsTriggering(true);
+                        const plainText = stripHtml(post.text);
+                        fetch('http://localhost:8081/trigger-workflow', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ hnPostId: post.id, postText: plainText })
+                        })
+                        .then(async res => {
+                          const data = await res.json() as any;
+                          if (!res.ok) {
+                            console.error('Workflow trigger failed:', data);
+                            throw new Error(data.error || 'Failed to start workflow');
+                          }
+                          return data;
+                        })
+                        .then((data: any) => {
+                          setTriggerMessage(`Workflow started for post ${post.id}: ${data.workflowId}`);
+                          setTimeout(() => refetchJobs(), 3000);
+                        })
+                        .catch((err: any) => setTriggerMessage(`Error: ${err.message}`))
+                        .finally(() => setIsTriggering(false));
+                      }}
+                      disabled={isTriggering}
+                      style={{ padding: '2px 8px', fontSize: '12px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                      Process
+                    </button>
+                  )}
                 </div>
                 <div 
                   className="hn-post-text"
@@ -187,7 +216,7 @@ function App() {
 
         {isJobsLoading ? (
           <p>Loading jobs...</p>
-        ) : jobs && jobs.length > 0 ? (
+        ) : recentJobs.length > 0 ? (
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid #eee' }}>
@@ -198,7 +227,7 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {jobs.slice(0, 10).map((job: any) => (
+              {recentJobs.slice(0, 10).map((job: any) => (
                 <tr key={job.id} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '12px' }}>{job.company_name}</td>
                   <td style={{ padding: '12px' }}>{job.job_title}</td>

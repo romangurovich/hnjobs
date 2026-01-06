@@ -1,26 +1,11 @@
 import { z } from 'zod';
 import { publicProcedure, router } from './t';
 import { nanoid } from 'nanoid';
+import { jobInputSchema } from '@hnjobs/core';
 
 const jobRouter = router({
   save: publicProcedure
-    .input(z.object({
-      company_name: z.string(),
-      job_title: z.string(),
-      salary_min: z.number().nullable(),
-      salary_max: z.number().nullable(),
-      salary_currency: z.string().nullable(),
-      location: z.string(),
-      remote_status: z.string(),
-      role_level: z.string(),
-      management_level: z.number().min(0).max(10),
-      technologies: z.array(z.string()),
-      summary: z.string().optional(),
-      hn_post_id: z.string().nullable().optional(),
-      job_url: z.string().nullable().optional(),
-      processed_from: z.enum(['LINK', 'POST_CONTENT']),
-      raw_content: z.string().optional(),
-    }))
+    .input(jobInputSchema)
     .mutation(async ({ input, ctx }) => {
       const id = nanoid();
       
@@ -57,6 +42,27 @@ const jobRouter = router({
       }
 
       return { id };
+    }),
+
+  checkExisting: publicProcedure
+    .input(z.object({
+      hnPostIds: z.array(z.string())
+    }))
+    .query(async ({ input, ctx }) => {
+      if (input.hnPostIds.length === 0) {
+        return { existingIds: [] };
+      }
+
+      const placeholders = input.hnPostIds.map(() => '?').join(',');
+      const query = `SELECT hn_post_id FROM jobs WHERE hn_post_id IN (${placeholders})`;
+
+      const { results } = await ctx.db.prepare(query)
+        .bind(...input.hnPostIds)
+        .all<{ hn_post_id: string }>();
+
+      return {
+        existingIds: results.map(r => r.hn_post_id)
+      };
     }),
 
   list: publicProcedure
