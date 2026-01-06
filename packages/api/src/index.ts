@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { trpcServer } from '@hono/trpc-server';
 import { appRouter } from './router';
+import { settings } from './config';
 
 type Bindings = {
   DB: D1Database;
@@ -14,8 +15,8 @@ app.use(
   '/trpc/*',
   cors({
     origin: (origin) => {
-      const allowedOrigins = ['http://localhost:5174', 'http://localhost:5175'];
-      return allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+      const allowedOrigins = settings.allowedOrigins;
+      return origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
     },
     allowHeaders: ['Content-Type'],
     allowMethods: ['GET', 'POST', 'OPTIONS'],

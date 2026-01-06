@@ -4,22 +4,21 @@ import { Client } from '@temporalio/client';
 import { nanoid } from 'nanoid';
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import type { AppRouter } from '@hnjobs/api/src/router';
+import { settings } from './config';
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 
 // For local development, allow requests from the admin UI
-app.use(cors({ origin: 'http://localhost:5175' })); // Assuming admin UI runs on 5175
+app.use(cors({ origin: settings.adminUiOrigin }));
 
 const temporalClient = new Client();
-
-const API_BASE_URL = 'http://localhost:8787'; // In prod, this would be an env var
 
 // Create tRPC client for making API calls
 const apiClient = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
-      url: `${API_BASE_URL}/trpc`,
+      url: `${settings.apiBaseUrl}/trpc`,
     }),
   ],
 });
@@ -158,7 +157,7 @@ app.post('/trigger-workflow', async (req, res) => {
   }
 });
 
-const port = 8081; // Different port from the main API proxy
+const port = settings.port; // Different port from the main API proxy
 app.listen(port, () => {
   console.log(`Admin API server listening on http://localhost:${port}`);
 });

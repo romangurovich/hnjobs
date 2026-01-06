@@ -6,6 +6,7 @@ import { httpBatchLink } from '@trpc/client';
 import './index.css';
 import App from './App.tsx';
 import { trpc } from './lib/trpc';
+import { settings } from './config';
 
 function Root() {
   const [queryClient] = useState(() => new QueryClient());
@@ -13,7 +14,7 @@ function Root() {
     trpc.createClient({
       links: [
         httpBatchLink({
-          url: 'http://localhost:8787/trpc', // Corrected URL
+          url: settings.trpcUrl,
         }),
       ],
     }),

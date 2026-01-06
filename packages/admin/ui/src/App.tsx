@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { trpc } from './lib/trpc';
+import { settings } from './config';
 import './App.css';
 
 const stripHtml = (html: string) => {
@@ -39,7 +40,7 @@ function App() {
   const { data: jobsResult, isLoading: isJobsLoading, refetch: refetchJobs } = trpc.job.list.useQuery();
 
   useEffect(() => {
-    fetch('http://localhost:8081/hn/latest-posts')
+    fetch(`${settings.adminApiUrl}/hn/latest-posts`)
       .then(res => res.json())
       .then((data: any) => {
         setHnPosts(data.posts || []);
@@ -59,7 +60,7 @@ function App() {
     setTriggerMessage('');
 
     try {
-      const response = await fetch('http://localhost:8081/trigger-workflow', {
+      const response = await fetch(`${settings.adminApiUrl}/trigger-workflow`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -170,7 +171,7 @@ function App() {
                       onClick={() => {
                         setIsTriggering(true);
                         const plainText = stripHtml(post.text);
-                        fetch('http://localhost:8081/trigger-workflow', {
+                        fetch(`${settings.adminApiUrl}/trigger-workflow`, {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ hnPostId: post.id, postText: plainText })
