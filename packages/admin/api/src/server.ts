@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import { Client } from '@temporalio/client';
 import { nanoid } from 'nanoid';
+import { createTRPCClient, httpBatchLink } from '@trpc/client';
+import type { AppRouter } from '@hnjobs/api/src/router';
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
@@ -12,6 +14,15 @@ app.use(cors({ origin: 'http://localhost:5175' })); // Assuming admin UI runs on
 const temporalClient = new Client();
 
 const API_BASE_URL = 'http://localhost:8787'; // In prod, this would be an env var
+
+// Create tRPC client for making API calls
+const apiClient = createTRPCClient<AppRouter>({
+  links: [
+    httpBatchLink({
+      url: `${API_BASE_URL}/trpc`,
+    }),
+  ],
+});
 
 async function fetchWithRetry(url: string, retries = 3, delay = 1000) {
   for (let i = 0; i < retries; i++) {
@@ -54,16 +65,19 @@ app.get('/hn/latest-posts', async (req, res) => {
     }
 
     const allPostIds: number[] = threadData.kids;
-    console.log(`Fetching details for ${allPostIds.length} posts...`);
 
     // 1. Check which posts are already processed
-    const input = JSON.stringify({ json: { hnPostIds: allPostIds.map(String) } });
-    const checkResponse = await fetch(`${API_BASE_URL}/trpc/job.checkExisting?input=${encodeURIComponent(input)}`);
-
-    const checkResult = await checkResponse.json() as any;
-    // tRPC response format: { result: { data: { existingIds: [...] } } }
-    const existingIds = new Set(checkResult.result?.data?.existingIds || []);
-
+    const checkResult = await apiClient.job.checkExisting.query({
+      hnPostIds: allPostIds.map(String),
+    });
+    
+    // Ensure all IDs are strings for consistent comparison, filter out null/undefined
+    const existingIds = new Set(
+      (checkResult.existingIds || [])
+        .filter((id: any) => id != null)
+        .map((id: any) => String(id))
+    );
+ 
     // 2. Fetch post details in batches
     const BATCH_SIZE = 20;
     const posts: any[] = [];

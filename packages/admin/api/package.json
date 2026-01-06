@@ -7,8 +7,10 @@
     "dev": "bun run src/server.ts"
   },
   "dependencies": {
+    "@hnjobs/api": "workspace:*",
     "@hnjobs/core": "workspace:*",
     "@temporalio/client": "^1.14.0",
+    "@trpc/client": "^11.8.1",
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "nanoid": "^5.1.6"

@@ -53,15 +53,29 @@ const jobRouter = router({
         return { existingIds: [] };
       }
 
-      const placeholders = input.hnPostIds.map(() => '?').join(',');
-      const query = `SELECT hn_post_id FROM jobs WHERE hn_post_id IN (${placeholders})`;
+      // SQLite (and D1) limit the number of bound parameters; chunk the query to avoid "too many SQL variables".
+      // Keep batch size well under SQLite/D1 parameter limits.
+      const MAX_VARS = 100;
+      const existing = new Set<string>();
 
-      const { results } = await ctx.db.prepare(query)
-        .bind(...input.hnPostIds)
-        .all<{ hn_post_id: string }>();
+      for (let i = 0; i < input.hnPostIds.length; i += MAX_VARS) {
+        const batch = input.hnPostIds.slice(i, i + MAX_VARS);
+        if (batch.length === 0) continue;
+
+        const placeholders = batch.map(() => '?').join(',');
+        const query = `SELECT hn_post_id FROM jobs WHERE hn_post_id IN (${placeholders})`;
+
+        const { results } = await ctx.db.prepare(query)
+          .bind(...batch)
+          .all<{ hn_post_id: string }>();
+
+        for (const row of results) {
+          if (row.hn_post_id != null) existing.add(row.hn_post_id);
+        }
+      }
 
       return {
-        existingIds: results.map(r => r.hn_post_id)
+        existingIds: Array.from(existing)
       };
     }),
 
