@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import { Client } from '@temporalio/client';
 import { nanoid } from 'nanoid';
+import { createTRPCClient, httpBatchLink } from '@trpc/client';
+import type { AppRouter } from '@hnjobs/api/src/router';
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
@@ -10,6 +12,30 @@ app.use(express.json({ limit: '1mb' }));
 app.use(cors({ origin: 'http://localhost:5175' })); // Assuming admin UI runs on 5175
 
 const temporalClient = new Client();
+
+const API_BASE_URL = 'http://localhost:8787'; // In prod, this would be an env var
+
+// Create tRPC client for making API calls
+const apiClient = createTRPCClient<AppRouter>({
+  links: [
+    httpBatchLink({
+      url: `${API_BASE_URL}/trpc`,
+    }),
+  ],
+});
+
+async function fetchWithRetry(url: string, retries = 3, delay = 1000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
 
 app.get('/hn/latest-posts', async (req, res) => {
   try {
@@ -30,21 +56,63 @@ app.get('/hn/latest-posts', async (req, res) => {
     const threadData = await threadResponse.json() as any;
 
     if (!threadData.kids || threadData.kids.length === 0) {
-      return res.json({ threadId, posts: [] });
+      return res.json({
+        threadId,
+        threadTitle: threadData.title,
+        posts: [],
+        stats: { total: 0, processed: 0 }
+      });
     }
 
-    // Fetch the first 20 comments for preview
-    const postIds = threadData.kids.slice(0, 20);
-    const postPromises = postIds.map(async (id: number) => {
-      const response = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
-      return response.json();
-    });
+    const allPostIds: number[] = threadData.kids;
 
-    const posts = await Promise.all(postPromises);
+    // 1. Check which posts are already processed
+    const checkResult = await apiClient.job.checkExisting.query({
+      hnPostIds: allPostIds.map(String),
+    });
+    
+    // Ensure all IDs are strings for consistent comparison, filter out null/undefined
+    const existingIds = new Set(
+      (checkResult.existingIds || [])
+        .filter((id: any) => id != null)
+        .map((id: any) => String(id))
+    );
+ 
+    // 2. Fetch post details in batches
+    const BATCH_SIZE = 20;
+    const posts: any[] = [];
+
+    for (let i = 0; i < allPostIds.length; i += BATCH_SIZE) {
+      const batchIds = allPostIds.slice(i, i + BATCH_SIZE);
+      const batchPromises = batchIds.map(async (id: number) => {
+        try {
+          return await fetchWithRetry(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
+        } catch (e) {
+          console.error(`Failed to fetch post ${id}`, e);
+          return null;
+        }
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      posts.push(...batchResults.filter((p: any) => p !== null && !p.deleted && !p.dead));
+
+      // Small delay to be nice to HN API
+      await new Promise(r => setTimeout(r, 100));
+    }
+
+    const processedPosts = posts.map(p => ({
+      ...p,
+      isProcessed: existingIds.has(String(p.id))
+    }));
+
     res.json({
       threadId,
       threadTitle: threadData.title,
-      posts: posts.filter(p => p !== null && !p.deleted && !p.dead)
+      posts: processedPosts,
+      stats: {
+        total: processedPosts.length,
+        processed: processedPosts.filter(p => p.isProcessed).length
+      }
     });
   } catch (error) {
     console.error('Error fetching HN posts:', error);

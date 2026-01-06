@@ -6,6 +6,13 @@
     "packages/*"
   ],
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@temporalio/client": "^1.14.0",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "nanoid": "^5.1.6"
   }
 }
