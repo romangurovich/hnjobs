@@ -1,12 +1,9 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
     "outDir": "dist",
-    "module": "ESNext",
-    "target": "ESNext",
-    "lib": ["ESNext"],
-    "moduleResolution": "node",
-    "jsx": "react-jsx",
     "types": ["@cloudflare/workers-types"]
   },
   "include": ["src"],

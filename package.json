@@ -6,9 +6,24 @@
     "packages/*",
     "packages/admin/*"
   ],
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --build",
+    "test": "bun test",
+    "build": "bun run build:ui && bun run build:admin-ui",
+    "build:ui": "bun run --cwd packages/ui build",
+    "build:admin-ui": "bun run --cwd packages/admin/ui build"
+  },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@types/bun": "latest",
-    "typescript": "^5.9.3"
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.4"
   },
   "dependencies": {
     "@temporalio/client": "^1.14.0",
