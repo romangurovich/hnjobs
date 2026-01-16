@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
+import path from 'path';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import * as jwt from 'jsonwebtoken';
@@ -449,6 +450,21 @@ app.post('/clear-all-jobs', requireAuth, async (req, res) => {
     console.error('Error clearing jobs:', error);
     res.status(500).json({ error: error.message || 'Failed to clear jobs' });
   }
+});
+
+// Serve static files from Admin UI build
+const uiDistPath = path.join(__dirname, '../../ui/dist');
+app.use(express.static(uiDistPath));
+
+// SPA fallback - serve index.html for client-side routing
+app.get('*', (req, res, next) => {
+  // Skip API and auth routes
+  if (req.path.startsWith('/api') || req.path.startsWith('/auth') || 
+      req.path.startsWith('/hn') || req.path.startsWith('/trigger') ||
+      req.path.startsWith('/process') || req.path.startsWith('/clear')) {
+    return next();
+  }
+  res.sendFile(path.join(uiDistPath, 'index.html'));
 });
 
 app.listen(settings.port, () => {

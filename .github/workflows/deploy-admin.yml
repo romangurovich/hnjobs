@@ -1,0 +1,74 @@
+name: Deploy Admin
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/admin/**"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Admin UI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build Admin UI
+        run: bun run build
+        working-directory: packages/admin/ui
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-ui-dist
+          path: packages/admin/ui/dist
+          retention-days: 1
+
+  deploy:
+    name: Deploy to Oracle Cloud VM
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: admin-ui-dist
+          path: admin-ui-dist
+
+      - name: Deploy code via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_ADMIN_HOST }}
+          username: deploy
+          key: ${{ secrets.ORACLE_ADMIN_SSH_KEY }}
+          script: |
+            cd /opt/hnjobs
+            git fetch origin main
+            git reset --hard origin/main
+            bun install --frozen-lockfile
+
+      - name: Copy Admin UI build
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ORACLE_ADMIN_HOST }}
+          username: deploy
+          key: ${{ secrets.ORACLE_ADMIN_SSH_KEY }}
+          source: admin-ui-dist/*
+          target: /opt/hnjobs/packages/admin/ui/dist
+          strip_components: 1
+
+      - name: Restart service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_ADMIN_HOST }}
+          username: deploy
+          key: ${{ secrets.ORACLE_ADMIN_SSH_KEY }}
+          script: sudo systemctl restart hnjobs-admin

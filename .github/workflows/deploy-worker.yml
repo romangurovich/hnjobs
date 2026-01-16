@@ -1,0 +1,27 @@
+name: Deploy Worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/worker/**"
+      - "packages/core/**"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Oracle Cloud VM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_WORKER_HOST }}
+          username: deploy
+          key: ${{ secrets.ORACLE_WORKER_SSH_KEY }}
+          script: |
+            cd /opt/hnjobs
+            git fetch origin main
+            git reset --hard origin/main
+            bun install --frozen-lockfile
+            sudo systemctl restart hnjobs-worker
