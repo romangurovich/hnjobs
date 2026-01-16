@@ -47,7 +47,7 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
     const payload = jwt.verify(token, settings.jwtSecret) as JwtPayload;
     req.user = payload;
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ error: 'Invalid or expired session' });
   }
 }
@@ -173,21 +173,28 @@ app.get('/hn/latest-posts', requireAuth, async (req, res) => {
     const searchResponse = await fetch(
       'https://hn.algolia.com/api/v1/search_by_date?query=Ask%20HN%3A%20Who%20is%20hiring%3F&tags=story&hitsPerPage=5'
     );
-    const searchData = await searchResponse.json() as any;
+    interface HNSearchHit { objectID: string; title: string }
+    interface HNSearchResponse { hits: HNSearchHit[] }
+    const searchData = await searchResponse.json() as HNSearchResponse;
     
     if (!searchData.hits || searchData.hits.length === 0) {
       return res.status(404).json({ error: 'No "Who is hiring" thread found.' });
     }
 
     const hit = searchData.hits.find(
-      (h: any) => typeof h.title === 'string' && /who is hiring\?/i.test(h.title)
-    ) || searchData.hits[0];
+      (h) => typeof h.title === 'string' && /who is hiring\?/i.test(h.title)
+    ) ?? searchData.hits[0];
+
+    if (!hit) {
+      return res.status(404).json({ error: 'No matching thread found.' });
+    }
 
     const threadId = hit.objectID;
     console.log(`Found thread ID: ${threadId}`);
 
+    interface HNThread { title: string; kids?: number[] }
     const threadResponse = await fetch(`https://hacker-news.firebaseio.com/v0/item/${threadId}.json`);
-    const threadData = await threadResponse.json() as any;
+    const threadData = await threadResponse.json() as HNThread;
 
     if (!threadData.kids || threadData.kids.length === 0) {
       return res.json({
@@ -205,13 +212,15 @@ app.get('/hn/latest-posts', requireAuth, async (req, res) => {
     const input = JSON.stringify({ hnPostIds: allPostIds.map(String) });
     const checkResponse = await fetch(`${settings.apiUrl}/trpc/job.checkExisting?input=${encodeURIComponent(input)}`);
 
-    const checkResult = await checkResponse.json() as any;
+    interface CheckResponse { result?: { data?: { existingIds: string[] } } }
+    const checkResult = await checkResponse.json() as CheckResponse;
     // tRPC response format: { result: { data: { existingIds: [...] } } }
     const existingIds = new Set(checkResult.result?.data?.existingIds || []);
 
     // 2. Fetch post details in batches
     const BATCH_SIZE = 20;
-    const posts: any[] = [];
+    interface HNPost { id: number; text?: string; by: string; time: number; deleted?: boolean; dead?: boolean }
+    const posts: HNPost[] = [];
 
     for (let i = 0; i < allPostIds.length; i += BATCH_SIZE) {
       const batchIds = allPostIds.slice(i, i + BATCH_SIZE);
@@ -224,8 +233,8 @@ app.get('/hn/latest-posts', requireAuth, async (req, res) => {
         }
       });
 
-      const batchResults = await Promise.all(batchPromises);
-      posts.push(...batchResults.filter((p: any) => p !== null && !p.deleted && !p.dead));
+      const batchResults = await Promise.all(batchPromises) as (HNPost | null)[];
+      posts.push(...batchResults.filter((p): p is HNPost => p !== null && !p.deleted && !p.dead));
 
       // Small delay to be nice to HN API
       await new Promise(r => setTimeout(r, 100));
@@ -301,22 +310,29 @@ app.post('/process-all-unprocessed', requireAuth, async (req, res) => {
     const searchResponse = await fetch(
       'https://hn.algolia.com/api/v1/search_by_date?query=Ask%20HN%3A%20Who%20is%20hiring%3F&tags=story&hitsPerPage=5'
     );
-    const searchData = await searchResponse.json() as any;
+    interface HNSearchHit2 { objectID: string; title: string }
+    interface HNSearchResponse2 { hits: HNSearchHit2[] }
+    const searchData = await searchResponse.json() as HNSearchResponse2;
 
     if (!searchData.hits || searchData.hits.length === 0) {
       return res.status(404).json({ error: 'No "Who is hiring" thread found.' });
     }
 
     const hit = searchData.hits.find(
-      (h: any) => typeof h.title === 'string' && /who is hiring\?/i.test(h.title)
-    ) || searchData.hits[0];
+      (h) => typeof h.title === 'string' && /who is hiring\?/i.test(h.title)
+    ) ?? searchData.hits[0];
+
+    if (!hit) {
+      return res.status(404).json({ error: 'No matching thread found.' });
+    }
 
     const threadId = hit.objectID;
     console.log(`Found thread ID: ${threadId}`);
 
     // 2. Get all post IDs from the thread
+    interface HNThread2 { title: string; kids?: number[] }
     const threadResponse = await fetch(`https://hacker-news.firebaseio.com/v0/item/${threadId}.json`);
-    const threadData = await threadResponse.json() as any;
+    const threadData = await threadResponse.json() as HNThread2;
 
     if (!threadData.kids || threadData.kids.length === 0) {
       return res.json({ processed: 0, message: 'No posts found in thread' });
@@ -327,7 +343,8 @@ app.post('/process-all-unprocessed', requireAuth, async (req, res) => {
     // 3. Check which posts are already processed
     const input = JSON.stringify({ hnPostIds: allPostIds.map(String) });
     const checkResponse = await fetch(`${settings.apiUrl}/trpc/job.checkExisting?input=${encodeURIComponent(input)}`);
-    const checkResult = await checkResponse.json() as any;
+    interface CheckResponse2 { result?: { data?: { existingIds: string[] } } }
+    const checkResult = await checkResponse.json() as CheckResponse2;
     const existingIds = new Set(checkResult.result?.data?.existingIds || []);
 
     // 4. Get unprocessed post IDs
@@ -356,13 +373,14 @@ app.post('/process-all-unprocessed', requireAuth, async (req, res) => {
         }
       });
 
-      const posts = (await Promise.all(batchPromises)).filter(
-        (p: any) => p !== null && !p.deleted && !p.dead && p.text
+      interface HNPost2 { id: number; text?: string; deleted?: boolean; dead?: boolean }
+      const batchPosts = (await Promise.all(batchPromises)) as (HNPost2 | null)[];
+      const posts = batchPosts.filter(
+        (p): p is HNPost2 & { text: string } => p !== null && !p.deleted && !p.dead && !!p.text
       );
 
       // Trigger workflows for each post
-      for (const p of posts) {
-        const post = p as { id: number; text: string };
+      for (const post of posts) {
         try {
           const workflowId = `job-batch-${nanoid()}`;
           
@@ -388,9 +406,10 @@ app.post('/process-all-unprocessed', requireAuth, async (req, res) => {
 
           startedWorkflows.push(workflowId);
           console.log(`Started workflow ${workflowId} for post ${post.id}`);
-        } catch (error: any) {
-          console.error(`Failed to start workflow for post ${post.id}:`, error.message);
-          errors.push(`Post ${post.id}: ${error.message}`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`Failed to start workflow for post ${post.id}:`, message);
+          errors.push(`Post ${post.id}: ${message}`);
         }
       }
 
@@ -407,9 +426,9 @@ app.post('/process-all-unprocessed', requireAuth, async (req, res) => {
       errors: errors.length > 0 ? errors : undefined,
       message: `Started processing ${startedWorkflows.length} posts`
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error processing all posts:', error);
-    res.status(500).json({ error: error.message || 'Failed to process posts' });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to process posts' });
   }
 });
 
@@ -434,7 +453,7 @@ app.post('/clear-all-jobs', requireAuth, async (req, res) => {
     let result;
     try {
       result = JSON.parse(responseText);
-    } catch (e) {
+    } catch {
       console.error('Failed to parse API response:', responseText.substring(0, 200));
       throw new Error('Invalid response from API');
     }
@@ -446,9 +465,9 @@ app.post('/clear-all-jobs', requireAuth, async (req, res) => {
 
     console.log('All jobs cleared successfully');
     res.json({ success: true, result: result.result?.data });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error clearing jobs:', error);
-    res.status(500).json({ error: error.message || 'Failed to clear jobs' });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to clear jobs' });
   }
 });
 

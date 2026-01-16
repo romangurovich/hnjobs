@@ -132,7 +132,7 @@ export function FilterPanel() {
         <div className="space-y-3">
           <label className="text-sm font-semibold uppercase tracking-wider text-gray-500 text-[10px]">Metropolitan Areas</label>
           <div className="space-y-2">
-            {popularLocations.map((loc: any) => (
+            {(popularLocations as { name: string; job_count: number }[]).map((loc) => (
               <label key={loc.name} className="flex items-center gap-3 cursor-pointer group">
                 <input
                   type="checkbox"
@@ -154,7 +154,7 @@ export function FilterPanel() {
         <div className="space-y-3">
           <label className="text-sm font-semibold uppercase tracking-wider text-gray-500 text-[10px]">Top Technologies</label>
           <div className="flex flex-wrap gap-2">
-            {popularTechs.map((tech: any) => (
+            {(popularTechs as { name: string; job_count: number }[]).map((tech) => (
               <button
                 key={tech.name}
                 onClick={() => toggleTechnology(tech.name)}

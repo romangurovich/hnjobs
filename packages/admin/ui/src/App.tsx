@@ -54,7 +54,8 @@ function App() {
   const [triggerMessage, setTriggerMessage] = useState('');
   const [isClearing, setIsClearing] = useState(false);
 
-  const [hnPosts, setHnPosts] = useState<any[]>([]);
+  interface HNPost { id: number; text: string; by: string; time: number; isProcessed: boolean }
+  const [hnPosts, setHnPosts] = useState<HNPost[]>([]);
   const [hnStats, setHnStats] = useState<{ total: number; processed: number } | null>(null);
   const [isHnLoading, setIsHnLoading] = useState(true);
   const [hnThreadInfo, setHnThreadInfo] = useState<{ id: string; title: string } | null>(null);
@@ -109,9 +110,10 @@ function App() {
   useEffect(() => {
     if (!user) return; // Only fetch when authenticated
     
+    interface HNPostsResponse { posts: HNPost[]; threadId: string; threadTitle: string; stats: { total: number; processed: number } }
     authFetch(`${settings.adminApiUrl}/hn/latest-posts`)
-      .then(res => res.json())
-      .then((data: any) => {
+      .then(res => res.json() as Promise<HNPostsResponse>)
+      .then((data) => {
         setHnPosts(data.posts || []);
         setHnThreadInfo({ id: data.threadId, title: data.threadTitle });
         setHnStats(data.stats || null);
@@ -183,7 +185,8 @@ function App() {
         method: 'POST',
       });
 
-      const data = await response.json() as any;
+      interface ProcessResponse { processed: number; errors?: string[]; error?: string }
+      const data = await response.json() as ProcessResponse;
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to process posts');
@@ -195,15 +198,16 @@ function App() {
       setTimeout(() => {
         refetchJobs();
         // Refresh HN posts to update processed status
+        interface HNPostsRefresh { posts: HNPost[]; stats: { total: number; processed: number } }
         authFetch(`${settings.adminApiUrl}/hn/latest-posts`)
-          .then(res => res.json())
-          .then((data: any) => {
-            setHnPosts(data.posts || []);
-            setHnStats(data.stats || null);
+          .then(res => res.json() as Promise<HNPostsRefresh>)
+          .then((refreshData) => {
+            setHnPosts(refreshData.posts || []);
+            setHnStats(refreshData.stats || null);
           });
       }, 5000);
-    } catch (error: any) {
-      setTriggerMessage(`Error: ${error.message}`);
+    } catch (error) {
+      setTriggerMessage(`Error: ${error instanceof Error ? error.message : error}`);
     } finally {
       setIsProcessingAll(false);
     }
@@ -222,7 +226,8 @@ function App() {
         method: 'POST',
       });
 
-      const data = await response.json() as any;
+      interface ClearResponse { success?: boolean; error?: string }
+      const data = await response.json() as ClearResponse;
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to clear jobs');
@@ -233,8 +238,8 @@ function App() {
       // Reset the HN posts processed status
       setHnPosts(posts => posts.map(p => ({ ...p, isProcessed: false })));
       setHnStats(stats => stats ? { ...stats, processed: 0 } : null);
-    } catch (error: any) {
-      setTriggerMessage(`Error: ${error.message}`);
+    } catch (error) {
+      setTriggerMessage(`Error: ${error instanceof Error ? error.message : error}`);
     } finally {
       setIsClearing(false);
     }
@@ -251,7 +256,8 @@ function App() {
         body: JSON.stringify({ url }),
       });
 
-      const data = await response.json() as any;
+      interface WorkflowResponse { workflowId?: string; error?: string }
+      const data = await response.json() as WorkflowResponse;
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to start workflow');
@@ -261,14 +267,22 @@ function App() {
       setUrl('');
       // Refetch the job list after a short delay to see the new job
       setTimeout(() => refetchJobs(), 2000);
-    } catch (error: any) {
-      setTriggerMessage(`Error: ${error.message}`);
+    } catch (error) {
+      setTriggerMessage(`Error: ${error instanceof Error ? error.message : error}`);
     } finally {
       setIsTriggering(false);
     }
   };
 
-  const recentJobs = jobsResult?.jobs || [];
+  interface AdminJob {
+    id: string;
+    company_name: string;
+    job_title: string;
+    location: string;
+    created_at: string;
+    technologies: string[];
+  }
+  const recentJobs = (jobsResult?.jobs || []) as AdminJob[];
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '40px' }}>
@@ -396,18 +410,19 @@ function App() {
                           body: JSON.stringify({ hnPostId: post.id, postText: plainText })
                         })
                         .then(async res => {
-                          const data = await res.json() as any;
+                          interface TriggerResponse { workflowId?: string; error?: string }
+                          const data = await res.json() as TriggerResponse;
                           if (!res.ok) {
                             console.error('Workflow trigger failed:', data);
                             throw new Error(data.error || 'Failed to start workflow');
                           }
                           return data;
                         })
-                        .then((data: any) => {
+                        .then((data) => {
                           setTriggerMessage(`Workflow started for post ${post.id}: ${data.workflowId}`);
                           setTimeout(() => refetchJobs(), 3000);
                         })
-                        .catch((err: any) => setTriggerMessage(`Error: ${err.message}`))
+                        .catch((err: Error) => setTriggerMessage(`Error: ${err.message}`))
                         .finally(() => setIsTriggering(false));
                       }}
                       disabled={isTriggering}
@@ -464,7 +479,7 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {recentJobs.slice(0, 10).map((job: any) => (
+              {recentJobs.slice(0, 10).map((job) => (
                 <tr key={job.id} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '12px' }}>{job.company_name}</td>
                   <td style={{ padding: '12px' }}>{job.job_title}</td>

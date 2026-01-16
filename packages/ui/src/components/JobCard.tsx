@@ -1,7 +1,26 @@
 import { MapPin, Briefcase, DollarSign, ExternalLink, Calendar } from 'lucide-react';
 
+interface Job {
+  id: string;
+  hn_post_id: string | null;
+  job_url: string | null;
+  company_name: string;
+  job_title: string;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_currency: string | null;
+  location: string;
+  remote_status: string;
+  role_level: string;
+  management_level: number;
+  summary: string | null;
+  processed_from: string;
+  created_at: string;
+  technologies: string[];
+}
+
 interface JobCardProps {
-  job: any; // We'll improve this with actual types from AppRouter later
+  job: Job;
 }
 
 export function JobCard({ job }: JobCardProps) {

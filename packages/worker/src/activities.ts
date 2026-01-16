@@ -25,7 +25,7 @@ export async function scrapePage(url: string): Promise<string> {
     try {
       await page.waitForLoadState('networkidle', { timeout: 5000 });
       console.log('Network settled (networkidle reached).');
-    } catch (e) {
+    } catch {
       console.warn('Network did not settle within 5s (likely ads/tracking), proceeding with extraction.');
     }
 
@@ -63,8 +63,8 @@ export async function scrapePage(url: string): Promise<string> {
 
     console.log(`Successfully scraped ${content.length} characters from ${url}`);
     return content;
-  } catch (error: any) {
-    console.error(`Error scraping ${url}:`, error.message);
+  } catch (error) {
+    console.error(`Error scraping ${url}:`, error instanceof Error ? error.message : error);
     throw error;
   } finally {
     await browser.close();
@@ -80,8 +80,8 @@ export async function processPageContent(content: string) {
     const jobPosting = await b.ExtractJobPosting(content);
     console.log('Successfully extracted job data:', JSON.stringify(jobPosting, null, 2));
     return jobPosting;
-  } catch (error: any) {
-    console.error('Error processing content with LLM:', error.message);
+  } catch (error) {
+    console.error('Error processing content with LLM:', error instanceof Error ? error.message : error);
     throw error;
   }
 }
@@ -104,9 +104,9 @@ export async function analyzePageType(content: string, url: string) {
 
     return analysis;
 
-  } catch (error: any) {
+  } catch (error) {
 
-    console.error(`Error analyzing page type for ${url}:`, error.message);
+    console.error(`Error analyzing page type for ${url}:`, error instanceof Error ? error.message : error);
 
     return { is_job_list: false, job_links: [] };
 
@@ -136,9 +136,9 @@ export async function extractUrlsFromText(text: string): Promise<string[]> {
 
     return urls;
 
-  } catch (error: any) {
+  } catch (error) {
 
-    console.error('Error extracting URLs:', error.message);
+    console.error('Error extracting URLs:', error instanceof Error ? error.message : error);
 
     return [];
 
@@ -160,7 +160,21 @@ export async function extractUrlsFromText(text: string): Promise<string[]> {
 
 
 
-export async function persistJobData(jobData: any, rawContent: string, hnPostId: string | null, jobUrl: string | null, processedFrom: 'LINK' | 'POST_CONTENT') {
+interface JobData {
+  company_name: string;
+  job_title: string;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency?: string | null;
+  location: string;
+  remote_status: string;
+  role_level: string;
+  management_level?: number | null;
+  summary?: string | null;
+  technologies: string[];
+}
+
+export async function persistJobData(jobData: JobData, rawContent: string, hnPostId: string | null, jobUrl: string | null, processedFrom: 'LINK' | 'POST_CONTENT') {
 
 
 
@@ -173,33 +187,21 @@ export async function persistJobData(jobData: any, rawContent: string, hnPostId:
 
 
     const result = await apiClient.job.save.mutate({
-
-
-
-      ...jobData,
-
-
-
-      management_level: jobData.management_level ?? 0, // Default to IC
-
-
-
+      company_name: jobData.company_name,
+      job_title: jobData.job_title,
+      salary_min: jobData.salary_min ?? null,
+      salary_max: jobData.salary_max ?? null,
+      salary_currency: jobData.salary_currency ?? null,
+      location: jobData.location,
+      remote_status: jobData.remote_status,
+      role_level: jobData.role_level,
+      management_level: jobData.management_level ?? 0,
+      technologies: jobData.technologies,
+      summary: jobData.summary ?? undefined,
       raw_content: rawContent,
-
-
-
       hn_post_id: hnPostId,
-
-
-
       job_url: jobUrl,
-
-
-
       processed_from: processedFrom,
-
-
-
     });
 
 
@@ -212,9 +214,9 @@ export async function persistJobData(jobData: any, rawContent: string, hnPostId:
 
     return result;
 
-  } catch (error: any) {
+  } catch (error) {
 
-    console.error('Error persisting job data:', error.message);
+    console.error('Error persisting job data:', error instanceof Error ? error.message : error);
 
     throw error;
 

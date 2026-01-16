@@ -93,7 +93,7 @@ const jobRouter = router({
     }).optional())
     .query(async ({ input, ctx }) => {
       const conditions: string[] = [];
-      const params: any[] = [];
+      const params: (string | number)[] = [];
 
       if (input?.search) {
         conditions.push('(j.company_name LIKE ? OR j.job_title LIKE ?)');
@@ -165,9 +165,11 @@ const jobRouter = router({
       const { results } = await ctx.db.prepare(query).bind(...params, pageSize, offset).all();
       
       return {
-        jobs: results.map((job: any) => ({
-          ...job,
-          technologies: job.technologies_list ? job.technologies_list.split(',') : [],
+        jobs: results.map((job) => ({
+          ...(job as Record<string, unknown>),
+          technologies: (job as { technologies_list?: string }).technologies_list 
+            ? (job as { technologies_list: string }).technologies_list.split(',') 
+            : [],
         })),
         total,
         page,
@@ -211,7 +213,7 @@ const jobRouter = router({
       // Use try-catch since sqlite_sequence may not exist if no AUTOINCREMENT was ever used
       try {
         await ctx.db.prepare("DELETE FROM sqlite_sequence WHERE name = 'technologies'").run();
-      } catch (e) {
+      } catch {
         // sqlite_sequence doesn't exist yet, which is fine
         console.log('sqlite_sequence table does not exist, skipping reset');
       }

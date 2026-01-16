@@ -10,7 +10,7 @@ function requireUrl(value: string | undefined, name: string): string {
   try {
     new URL(value);
     return value;
-  } catch (_err) {
+  } catch {
     throw new Error(`Invalid URL in env var ${name}: ${value}`);
   }
 }

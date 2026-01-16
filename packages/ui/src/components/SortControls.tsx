@@ -15,7 +15,7 @@ export function SortControls() {
       <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Sort By</span>
       <select
         value={sortBy}
-        onChange={(e) => setSort(e.target.value as any, sortOrder)}
+        onChange={(e) => setSort(e.target.value as 'created_at' | 'salary_max' | 'company_name', sortOrder)}
         className="text-sm font-medium bg-transparent outline-none cursor-pointer border-r border-gray-100 pr-3"
       >
         {options.map((opt) => (

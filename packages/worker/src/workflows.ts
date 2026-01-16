@@ -37,12 +37,16 @@ export async function extractLinksWorkflow(postText: string, hnPostId: string): 
 /**
  * STANDALONE WORKFLOW: Process content of any kind and persist enhanced job data.
  */
+interface PersistedJob {
+  id: string;
+}
+
 export async function enrichAndPersistWorkflow(
   content: string, 
   hnPostId: string | null, 
   jobUrl: string | null,
   source: 'LINK' | 'POST_CONTENT'
-): Promise<any> {
+): Promise<PersistedJob> {
   console.log(`[Post ${hnPostId}] Starting standalone enrichment. Source: ${source}`);
   const jobData = await processPageContent(content);
   return await persistJobData(jobData, content, hnPostId, jobUrl, source);
@@ -52,7 +56,7 @@ export async function enrichAndPersistWorkflow(
  * STANDALONE WORKFLOW: Crawl, Analyze, and Process a potential job link.
  * Handles both single postings and list pages.
  */
-export async function handlePotentialJobLinkWorkflow(url: string, hnPostId: string | null): Promise<any[]> {
+export async function handlePotentialJobLinkWorkflow(url: string, hnPostId: string | null): Promise<PersistedJob[]> {
   console.log(`[Post ${hnPostId}] Handling potential job link: ${url}`);
   
   // 1. Crawl the initial page
@@ -80,8 +84,8 @@ export async function handlePotentialJobLinkWorkflow(url: string, hnPostId: stri
           args: [subContent, hnPostId, subUrl, 'LINK'],
           workflowId: `enrich-${uniqueId}`,
         });
-      } catch (error: any) {
-        console.warn(`[Post ${hnPostId}] Failed to process sub-link ${subUrl}: ${error.message}`);
+      } catch (error) {
+        console.warn(`[Post ${hnPostId}] Failed to process sub-link ${subUrl}: ${error instanceof Error ? error.message : error}`);
         return null;
       }
     });
@@ -102,14 +106,14 @@ export async function handlePotentialJobLinkWorkflow(url: string, hnPostId: stri
 /**
  * ORCHESTRATOR WORKFLOW: Processes an HN post.
  */
-export async function processHNPost(hnPostId: string, postText: string): Promise<any[]> {
+export async function processHNPost(hnPostId: string, postText: string): Promise<PersistedJob[]> {
   // Step 1: Extract links from the HN post
   const urls = await executeChild(extractLinksWorkflow, {
     args: [postText, hnPostId],
     workflowId: `links-${hnPostId}`,
   });
 
-  const results: any[] = [];
+  const results: PersistedJob[] = [];
   
   if (urls && urls.length > 0) {
     console.log(`[Post ${hnPostId}] Found ${urls.length} potential job links. Processing each...`);
@@ -123,8 +127,8 @@ export async function processHNPost(hnPostId: string, postText: string): Promise
           workflowId: `handler-${hnPostId}-${url.slice(-10)}`,
         });
         return subResults;
-      } catch (error: any) {
-        console.warn(`[Post ${hnPostId}] handler failed for ${url}: ${error.message}`);
+      } catch (error) {
+        console.warn(`[Post ${hnPostId}] handler failed for ${url}: ${error instanceof Error ? error.message : error}`);
         return [];
       }
     });

@@ -26,7 +26,25 @@ function App() {
     sortOrder,
   });
 
-  const jobs = data?.jobs || [];
+  interface Job {
+    id: string;
+    hn_post_id: string | null;
+    job_url: string | null;
+    company_name: string;
+    job_title: string;
+    salary_min: number | null;
+    salary_max: number | null;
+    salary_currency: string | null;
+    location: string;
+    remote_status: string;
+    role_level: string;
+    management_level: number;
+    summary: string | null;
+    processed_from: string;
+    created_at: string;
+    technologies: string[];
+  }
+  const jobs = (data?.jobs || []) as Job[];
   const total = data?.total || 0;
   const totalPages = data?.totalPages || 0;
 
@@ -72,8 +90,8 @@ function App() {
           ) : jobs.length > 0 ? (
             <>
               <div className="grid grid-cols-1 gap-6">
-                {jobs.map((job: any) => (
-                  <JobCard key={job.id} job={job} />
+                {jobs.map((job) => (
+                  <JobCard key={job.id} job={job as Parameters<typeof JobCard>[0]['job']} />
                 ))}
               </div>
               

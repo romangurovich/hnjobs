@@ -12,7 +12,7 @@ export function parseOrigins(raw: string | undefined): string[] {
   origins.forEach((o) => {
     try {
       new URL(o);
-    } catch (_err) {
+    } catch {
       throw new Error(`Invalid URL in ALLOWED_ORIGINS: ${o}`);
     }
   });
