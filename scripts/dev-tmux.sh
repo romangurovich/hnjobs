@@ -20,7 +20,7 @@ tmux rename-window -t "$SESSION:0" 'api'
 tmux new-window -t "$SESSION" -n 'admin-api' -c "$ROOT/packages/admin/api" 'bun run dev'
 tmux new-window -t "$SESSION" -n 'admin-ui' -c "$ROOT/packages/admin/ui" 'bun run dev'
 tmux new-window -t "$SESSION" -n 'ui' -c "$ROOT/packages/ui" 'bun run dev'
-tmux new-window -t "$SESSION" -n 'worker' -c "$ROOT/packages/worker" 'bun run dev'
+tmux new-window -t "$SESSION" -n 'worker' -c "$ROOT/packages/worker" 'bun run dev 2>&1 | tee -a worker.log'
 
 tmux select-window -t "$SESSION:0"
 tmux attach-session -t "$SESSION"

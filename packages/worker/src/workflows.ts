@@ -9,7 +9,13 @@ const {
   extractUrlsFromText,
   analyzePageType 
 } = proxyActivities<typeof activities>({
-  startToCloseTimeout: '1 minute',
+  startToCloseTimeout: '3 minutes',
+  retry: {
+    initialInterval: '1 second',
+    backoffCoefficient: 2,
+    maximumInterval: '30 seconds',
+    maximumAttempts: 3,
+  },
 });
 
 /**

@@ -4,7 +4,9 @@
   "private": true,
   "main": "src/index.ts",
   "scripts": {
-    "dev": "wrangler dev src/index.ts"
+    "dev": "wrangler dev src/index.ts",
+    "db:migrate": "wrangler d1 execute hnjobs-db --local --file=schema.sql",
+    "db:migrate:remote": "wrangler d1 execute hnjobs-db --remote --file=schema.sql"
   },
   "dependencies": {
     "@hnjobs/core": "workspace:*",

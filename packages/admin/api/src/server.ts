@@ -130,12 +130,16 @@ app.post('/trigger-workflow', async (req, res) => {
         taskQueue: 'hn-jobs',
         workflowId: workflowId,
         args: [hnPostId.toString(), postText],
+        workflowExecutionTimeout: '30 minutes',
+        workflowRunTimeout: '30 minutes',
       });
     } else if (url) {
       await temporalClient.workflow.start('crawlPageWorkflow', {
         taskQueue: 'hn-jobs',
         workflowId: workflowId,
         args: [url, null], // Standalone crawl has no post ID
+        workflowExecutionTimeout: '30 minutes',
+        workflowRunTimeout: '30 minutes',
       });
     }
 
