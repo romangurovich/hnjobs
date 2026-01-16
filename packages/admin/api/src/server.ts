@@ -151,6 +151,126 @@ app.post('/trigger-workflow', async (req, res) => {
   }
 });
 
+app.post('/process-all-unprocessed', async (req, res) => {
+  console.log('Received /process-all-unprocessed request');
+
+  try {
+    // 1. Fetch the latest "Who is hiring" thread
+    const searchResponse = await fetch(
+      'https://hn.algolia.com/api/v1/search_by_date?query=Ask%20HN%3A%20Who%20is%20hiring%3F&tags=story&hitsPerPage=5'
+    );
+    const searchData = await searchResponse.json() as any;
+
+    if (!searchData.hits || searchData.hits.length === 0) {
+      return res.status(404).json({ error: 'No "Who is hiring" thread found.' });
+    }
+
+    const hit = searchData.hits.find(
+      (h: any) => typeof h.title === 'string' && /who is hiring\?/i.test(h.title)
+    ) || searchData.hits[0];
+
+    const threadId = hit.objectID;
+    console.log(`Found thread ID: ${threadId}`);
+
+    // 2. Get all post IDs from the thread
+    const threadResponse = await fetch(`https://hacker-news.firebaseio.com/v0/item/${threadId}.json`);
+    const threadData = await threadResponse.json() as any;
+
+    if (!threadData.kids || threadData.kids.length === 0) {
+      return res.json({ processed: 0, message: 'No posts found in thread' });
+    }
+
+    const allPostIds: number[] = threadData.kids;
+
+    // 3. Check which posts are already processed
+    const input = JSON.stringify({ hnPostIds: allPostIds.map(String) });
+    const checkResponse = await fetch(`${settings.apiUrl}/trpc/job.checkExisting?input=${encodeURIComponent(input)}`);
+    const checkResult = await checkResponse.json() as any;
+    const existingIds = new Set(checkResult.result?.data?.existingIds || []);
+
+    // 4. Get unprocessed post IDs
+    const unprocessedIds = allPostIds.filter(id => !existingIds.has(String(id)));
+    console.log(`Found ${unprocessedIds.length} unprocessed posts out of ${allPostIds.length} total`);
+
+    if (unprocessedIds.length === 0) {
+      return res.json({ processed: 0, message: 'All posts are already processed!' });
+    }
+
+    // 5. Fetch details and trigger workflows for unprocessed posts (in batches)
+    const BATCH_SIZE = 20;
+    const startedWorkflows: string[] = [];
+    const errors: string[] = [];
+
+    for (let i = 0; i < unprocessedIds.length; i += BATCH_SIZE) {
+      const batchIds = unprocessedIds.slice(i, i + BATCH_SIZE);
+      
+      // Fetch post details
+      const batchPromises = batchIds.map(async (id: number) => {
+        try {
+          return await fetchWithRetry(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
+        } catch (e) {
+          console.error(`Failed to fetch post ${id}`, e);
+          return null;
+        }
+      });
+
+      const posts = (await Promise.all(batchPromises)).filter(
+        (p: any) => p !== null && !p.deleted && !p.dead && p.text
+      );
+
+      // Trigger workflows for each post
+      for (const p of posts) {
+        const post = p as { id: number; text: string };
+        try {
+          const workflowId = `job-batch-${nanoid()}`;
+          
+          // Strip HTML from post text
+          const plainText = post.text
+            .replace(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)<\/a>/gi, (_: string, href: string, content: string) => `${content} (${href})`)
+            .replace(/<p>/gi, '\n\n')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<[^>]*>?/gm, '')
+            .replace(/&quot;/g, '"')
+            .replace(/&amp;/g, '&')
+            .replace(/&#x27;/g, "'")
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>');
+
+          await temporalClient.workflow.start('processHNPost', {
+            taskQueue: 'hn-jobs',
+            workflowId: workflowId,
+            args: [post.id.toString(), plainText],
+            workflowExecutionTimeout: '30 minutes',
+            workflowRunTimeout: '30 minutes',
+          });
+
+          startedWorkflows.push(workflowId);
+          console.log(`Started workflow ${workflowId} for post ${post.id}`);
+        } catch (error: any) {
+          console.error(`Failed to start workflow for post ${post.id}:`, error.message);
+          errors.push(`Post ${post.id}: ${error.message}`);
+        }
+      }
+
+      // Small delay between batches to avoid overwhelming Temporal
+      if (i + BATCH_SIZE < unprocessedIds.length) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+
+    console.log(`Successfully started ${startedWorkflows.length} workflows`);
+    res.json({
+      processed: startedWorkflows.length,
+      total: unprocessedIds.length,
+      errors: errors.length > 0 ? errors : undefined,
+      message: `Started processing ${startedWorkflows.length} posts`
+    });
+  } catch (error: any) {
+    console.error('Error processing all posts:', error);
+    res.status(500).json({ error: error.message || 'Failed to process posts' });
+  }
+});
+
 app.post('/clear-all-jobs', async (req, res) => {
   console.log('Received /clear-all-jobs request');
 

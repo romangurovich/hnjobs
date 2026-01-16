@@ -37,8 +37,49 @@ function App() {
   const [hnStats, setHnStats] = useState<{ total: number; processed: number } | null>(null);
   const [isHnLoading, setIsHnLoading] = useState(true);
   const [hnThreadInfo, setHnThreadInfo] = useState<{ id: string; title: string } | null>(null);
+  const [isProcessingAll, setIsProcessingAll] = useState(false);
 
   const { data: jobsResult, isLoading: isJobsLoading, refetch: refetchJobs } = trpc.job.list.useQuery();
+
+  const handleProcessAllUnprocessed = async () => {
+    if (!window.confirm(`Are you sure you want to process all ${hnStats ? hnStats.total - hnStats.processed : 'remaining'} unprocessed posts? This will start many workflows.`)) {
+      return;
+    }
+
+    setIsProcessingAll(true);
+    setTriggerMessage('');
+
+    try {
+      const response = await fetch(`${settings.adminApiUrl}/process-all-unprocessed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await response.json() as any;
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to process posts');
+      }
+
+      setTriggerMessage(`Started processing ${data.processed} posts. ${data.errors?.length ? `(${data.errors.length} errors)` : ''}`);
+      
+      // Refresh data after a delay
+      setTimeout(() => {
+        refetchJobs();
+        // Refresh HN posts to update processed status
+        fetch(`${settings.adminApiUrl}/hn/latest-posts`)
+          .then(res => res.json())
+          .then((data: any) => {
+            setHnPosts(data.posts || []);
+            setHnStats(data.stats || null);
+          });
+      }, 5000);
+    } catch (error: any) {
+      setTriggerMessage(`Error: ${error.message}`);
+    } finally {
+      setIsProcessingAll(false);
+    }
+  };
 
   const handleClearAllJobs = async () => {
     if (!window.confirm('Are you sure you want to delete ALL jobs from the database? This action cannot be undone.')) {
@@ -150,10 +191,29 @@ function App() {
         <h2>Latest HN Posts Preview {hnThreadInfo && `(${hnThreadInfo.title})`}</h2>
 
         {hnStats && (
-          <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#e0f7fa', borderRadius: '8px', display: 'flex', gap: '24px' }}>
+          <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#e0f7fa', borderRadius: '8px', display: 'flex', gap: '24px', alignItems: 'center' }}>
              <div><strong>Total Posts:</strong> {hnStats.total}</div>
              <div><strong>Processed:</strong> {hnStats.processed}</div>
              <div><strong>Remaining:</strong> {hnStats.total - hnStats.processed}</div>
+             {hnStats.total - hnStats.processed > 0 && (
+               <button
+                 onClick={handleProcessAllUnprocessed}
+                 disabled={isProcessingAll || isTriggering}
+                 style={{
+                   marginLeft: 'auto',
+                   padding: '10px 20px',
+                   backgroundColor: '#2196F3',
+                   color: 'white',
+                   border: 'none',
+                   borderRadius: '4px',
+                   fontWeight: 'bold',
+                   cursor: isProcessingAll ? 'not-allowed' : 'pointer',
+                   opacity: isProcessingAll ? 0.7 : 1
+                 }}
+               >
+                 {isProcessingAll ? 'Processing...' : `Process All ${hnStats.total - hnStats.processed} Posts`}
+               </button>
+             )}
           </div>
         )}
 
