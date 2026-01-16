@@ -10,6 +10,6 @@ function requireEnv(name: string): string {
 }
 
 export const settings = {
-  trpcUrl: requireEnv('TRPC_URL'),
+  apiUrl: requireEnv('API_URL'),
 };
 

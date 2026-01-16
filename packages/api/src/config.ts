@@ -1,4 +1,4 @@
-function parseOrigins(raw: string | undefined): string[] {
+export function parseOrigins(raw: string | undefined): string[] {
   if (!raw) {
     throw new Error('Missing env var ALLOWED_ORIGINS (comma-separated URLs)');
   }
@@ -18,8 +18,4 @@ function parseOrigins(raw: string | undefined): string[] {
   });
   return origins;
 }
-
-export const settings = {
-  allowedOrigins: parseOrigins(process.env.ALLOWED_ORIGINS),
-};
 

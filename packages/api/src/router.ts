@@ -53,8 +53,7 @@ const jobRouter = router({
         return { existingIds: [] };
       }
 
-      // SQLite (and D1) limit the number of bound parameters; chunk the query to avoid "too many SQL variables".
-      // Keep batch size well under SQLite/D1 parameter limits.
+      // SQLite/D1 limit bound parameters; chunk to avoid "too many SQL variables".
       const MAX_VARS = 100;
       const existing = new Set<string>();
 

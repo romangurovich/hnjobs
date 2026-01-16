@@ -1,5 +1,5 @@
 type Env = {
-  VITE_TRPC_URL?: string;
+  VITE_API_URL?: string;
 };
 
 const env = import.meta.env as Env;
@@ -15,6 +15,6 @@ function requireUrl(value: string | undefined, name: string): string {
 }
 
 export const settings = {
-  trpcUrl: requireUrl(env.VITE_TRPC_URL, 'VITE_TRPC_URL'),
+  trpcUrl: requireUrl(env.VITE_API_URL, 'VITE_API_URL'),
 };
 

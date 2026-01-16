@@ -2,8 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import { Client } from '@temporalio/client';
 import { nanoid } from 'nanoid';
-import { createTRPCClient, httpBatchLink } from '@trpc/client';
-import type { AppRouter } from '@hnjobs/api/src/router';
 import { settings } from './config';
 
 const app = express();
@@ -13,15 +11,6 @@ app.use(express.json({ limit: '1mb' }));
 app.use(cors({ origin: settings.adminUiOrigin }));
 
 const temporalClient = new Client();
-
-// Create tRPC client for making API calls
-const apiClient = createTRPCClient<AppRouter>({
-  links: [
-    httpBatchLink({
-      url: `${settings.apiBaseUrl}/trpc`,
-    }),
-  ],
-});
 
 async function fetchWithRetry(url: string, retries = 3, delay = 1000) {
   for (let i = 0; i < retries; i++) {
@@ -40,7 +29,7 @@ app.get('/hn/latest-posts', async (req, res) => {
   try {
     console.log('Fetching latest "Who is hiring" thread ID...');
     const searchResponse = await fetch(
-      'http://hn.algolia.com/api/v1/search_by_date?query=Ask%20HN:%20Who%20is%20hiring?&tags=story&hitsPerPage=1'
+      'https://hn.algolia.com/api/v1/search_by_date?query=Ask%20HN%3A%20Who%20is%20hiring%3F&tags=story&hitsPerPage=5'
     );
     const searchData = await searchResponse.json() as any;
     
@@ -48,7 +37,11 @@ app.get('/hn/latest-posts', async (req, res) => {
       return res.status(404).json({ error: 'No "Who is hiring" thread found.' });
     }
 
-    const threadId = searchData.hits[0].objectID;
+    const hit = searchData.hits.find(
+      (h: any) => typeof h.title === 'string' && /who is hiring\?/i.test(h.title)
+    ) || searchData.hits[0];
+
+    const threadId = hit.objectID;
     console.log(`Found thread ID: ${threadId}`);
 
     const threadResponse = await fetch(`https://hacker-news.firebaseio.com/v0/item/${threadId}.json`);
@@ -64,19 +57,16 @@ app.get('/hn/latest-posts', async (req, res) => {
     }
 
     const allPostIds: number[] = threadData.kids;
+    console.log(`Fetching details for ${allPostIds.length} posts...`);
 
     // 1. Check which posts are already processed
-    const checkResult = await apiClient.job.checkExisting.query({
-      hnPostIds: allPostIds.map(String),
-    });
-    
-    // Ensure all IDs are strings for consistent comparison, filter out null/undefined
-    const existingIds = new Set(
-      (checkResult.existingIds || [])
-        .filter((id: any) => id != null)
-        .map((id: any) => String(id))
-    );
- 
+    const input = JSON.stringify({ hnPostIds: allPostIds.map(String) });
+    const checkResponse = await fetch(`${settings.apiUrl}/trpc/job.checkExisting?input=${encodeURIComponent(input)}`);
+
+    const checkResult = await checkResponse.json() as any;
+    // tRPC response format: { result: { data: { existingIds: [...] } } }
+    const existingIds = new Set(checkResult.result?.data?.existingIds || []);
+
     // 2. Fetch post details in batches
     const BATCH_SIZE = 20;
     const posts: any[] = [];
@@ -157,7 +147,7 @@ app.post('/trigger-workflow', async (req, res) => {
   }
 });
 
-const port = settings.port; // Different port from the main API proxy
+const port = 8081; // Different port from the main API proxy
 app.listen(port, () => {
   console.log(`Admin API server listening on http://localhost:${port}`);
 });

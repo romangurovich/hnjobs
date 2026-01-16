@@ -5,7 +5,7 @@ import { settings } from './config';
 export const apiClient = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
-      url: settings.trpcUrl,
+      url: `${settings.apiUrl}/trpc`,
     }),
   ],
 });
