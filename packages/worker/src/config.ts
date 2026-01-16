@@ -1,6 +1,11 @@
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Missing env var ${name}`);
+  return value;
+}
+
+function requireUrl(name: string): string {
+  const value = requireEnv(name);
   try {
     new URL(value);
     return value;
@@ -10,6 +15,7 @@ function requireEnv(name: string): string {
 }
 
 export const settings = {
-  apiUrl: requireEnv('API_URL'),
+  apiUrl: requireUrl('API_URL'),
+  apiToken: requireEnv('API_TOKEN'),
 };
 

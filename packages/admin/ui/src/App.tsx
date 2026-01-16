@@ -52,7 +52,10 @@ function App() {
     try {
       const response = await fetch(`${settings.adminApiUrl}/process-all-unprocessed`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${settings.adminToken}`,
+        },
       });
 
       const data = await response.json() as any;
@@ -92,7 +95,10 @@ function App() {
     try {
       const response = await fetch(`${settings.adminApiUrl}/clear-all-jobs`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${settings.adminToken}`,
+        },
       });
 
       const data = await response.json() as any;
@@ -138,6 +144,7 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${settings.adminToken}`,
         },
         body: JSON.stringify({ url }),
       });
@@ -266,7 +273,10 @@ function App() {
                         const plainText = stripHtml(post.text);
                         fetch(`${settings.adminApiUrl}/trigger-workflow`, {
                           method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${settings.adminToken}`,
+                          },
                           body: JSON.stringify({ hnPostId: post.id, postText: plainText })
                         })
                         .then(async res => {

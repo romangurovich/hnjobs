@@ -7,6 +7,7 @@ import { parseOrigins } from './config';
 type Bindings = {
   DB: D1Database;
   ALLOWED_ORIGINS: string;
+  API_TOKEN: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -19,7 +20,7 @@ app.use(
       const allowedOrigins = parseOrigins(c.env.ALLOWED_ORIGINS);
       return origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
     },
-    allowHeaders: ['Content-Type'],
+    allowHeaders: ['Content-Type', 'Authorization'],
     allowMethods: ['GET', 'POST', 'OPTIONS'],
     credentials: true,
   })
@@ -34,8 +35,18 @@ app.use(
       if (!c.env.DB) {
         console.error('D1 Database binding "DB" is missing!');
       }
+
+      // Extract bearer token from Authorization header
+      const authHeader = opts.req.headers.get('authorization');
+      let authToken: string | null = null;
+      if (authHeader?.startsWith('Bearer ')) {
+        authToken = authHeader.slice(7);
+      }
+
       return {
         db: c.env.DB,
+        apiToken: c.env.API_TOKEN,
+        authToken,
       };
     },
   })

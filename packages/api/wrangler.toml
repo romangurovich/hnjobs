@@ -6,6 +6,10 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 ALLOWED_ORIGINS = "http://localhost:5173,http://localhost:5174,http://localhost:5175"
 
+# API_TOKEN must be set as a secret (not in vars):
+#   wrangler secret put API_TOKEN
+# This token is required for authenticated mutations (job.save, job.clearAll)
+
 [[d1_databases]]
 binding = "DB"
 database_name = "hnjobs-db"

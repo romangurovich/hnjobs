@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { Client } from '@temporalio/client';
 import { nanoid } from 'nanoid';
@@ -9,6 +9,21 @@ app.use(express.json({ limit: '1mb' }));
 
 // For local development, allow requests from the admin UI
 app.use(cors({ origin: settings.adminUiOrigin }));
+
+// Auth middleware for protected routes
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+  }
+
+  const token = authHeader.slice(7); // Remove 'Bearer ' prefix
+  if (token !== settings.adminToken) {
+    return res.status(403).json({ error: 'Invalid token' });
+  }
+
+  next();
+}
 
 const temporalClient = new Client();
 
@@ -109,7 +124,7 @@ app.get('/hn/latest-posts', async (req, res) => {
   }
 });
 
-app.post('/trigger-workflow', async (req, res) => {
+app.post('/trigger-workflow', requireAuth, async (req, res) => {
   console.log('Received /trigger-workflow request:', { 
     url: req.body.url, 
     hnPostId: req.body.hnPostId, 
@@ -151,7 +166,7 @@ app.post('/trigger-workflow', async (req, res) => {
   }
 });
 
-app.post('/process-all-unprocessed', async (req, res) => {
+app.post('/process-all-unprocessed', requireAuth, async (req, res) => {
   console.log('Received /process-all-unprocessed request');
 
   try {
@@ -271,7 +286,7 @@ app.post('/process-all-unprocessed', async (req, res) => {
   }
 });
 
-app.post('/clear-all-jobs', async (req, res) => {
+app.post('/clear-all-jobs', requireAuth, async (req, res) => {
   console.log('Received /clear-all-jobs request');
 
   try {

@@ -6,6 +6,11 @@ export const apiClient = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
       url: `${settings.apiUrl}/trpc`,
+      headers() {
+        return {
+          Authorization: `Bearer ${settings.apiToken}`,
+        };
+      },
     }),
   ],
 });

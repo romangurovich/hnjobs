@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { publicProcedure, router } from './t';
+import { publicProcedure, protectedProcedure, router } from './t';
 import { nanoid } from 'nanoid';
 import { jobInputSchema } from '@hnjobs/core';
 
 const jobRouter = router({
-  save: publicProcedure
+  save: protectedProcedure
     .input(jobInputSchema)
     .mutation(async ({ input, ctx }) => {
       const id = nanoid();
@@ -200,7 +200,7 @@ const jobRouter = router({
       return results;
     }),
 
-  clearAll: publicProcedure
+  clearAll: protectedProcedure
     .mutation(async ({ ctx }) => {
       // Delete all data from tables (order matters due to foreign keys)
       await ctx.db.prepare('DELETE FROM job_technologies').run();
