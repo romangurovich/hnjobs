@@ -3,6 +3,11 @@ import { trpc } from './lib/trpc';
 import { settings } from './config';
 import './App.css';
 
+interface User {
+  email: string;
+  name: string;
+}
+
 const stripHtml = (html: string) => {
   let text = html;
   
@@ -27,7 +32,23 @@ const stripHtml = (html: string) => {
     .replace(/&gt;/g, '>');
 };
 
+// Helper for authenticated API calls
+async function authFetch(url: string, options: RequestInit = {}) {
+  return fetch(url, {
+    ...options,
+    credentials: 'include', // Include cookies
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+}
+
 function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+
   const [url, setUrl] = useState('');
   const [isTriggering, setIsTriggering] = useState(false);
   const [triggerMessage, setTriggerMessage] = useState('');
@@ -41,6 +62,114 @@ function App() {
 
   const { data: jobsResult, isLoading: isJobsLoading, refetch: refetchJobs } = trpc.job.list.useQuery();
 
+  // Check for auth errors in URL (from OAuth redirect)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get('auth_error');
+    if (error) {
+      const errorMessages: Record<string, string> = {
+        access_denied: 'Access denied. Your email is not authorized.',
+        token_exchange_failed: 'Authentication failed. Please try again.',
+        userinfo_failed: 'Failed to get user info. Please try again.',
+        server_error: 'Server error during authentication.',
+      };
+      setAuthError(errorMessages[error] || `Authentication error: ${error}`);
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // Check authentication status on mount
+  useEffect(() => {
+    authFetch(`${settings.adminApiUrl}/auth/me`)
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user);
+        }
+      })
+      .catch((err) => {
+        console.error('Auth check failed:', err);
+      })
+      .finally(() => {
+        setAuthLoading(false);
+      });
+  }, []);
+
+  const handleLogin = () => {
+    window.location.href = `${settings.adminApiUrl}/auth/google`;
+  };
+
+  const handleLogout = async () => {
+    await authFetch(`${settings.adminApiUrl}/auth/logout`, { method: 'POST' });
+    setUser(null);
+  };
+
+  // Fetch HN posts when authenticated
+  useEffect(() => {
+    if (!user) return; // Only fetch when authenticated
+    
+    authFetch(`${settings.adminApiUrl}/hn/latest-posts`)
+      .then(res => res.json())
+      .then((data: any) => {
+        setHnPosts(data.posts || []);
+        setHnThreadInfo({ id: data.threadId, title: data.threadTitle });
+        setHnStats(data.stats || null);
+        setIsHnLoading(false);
+      })
+      .catch(err => {
+        console.error('Error fetching HN posts:', err);
+        setIsHnLoading(false);
+      });
+  }, [user]);
+
+  // Show loading state
+  if (authLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!user) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', gap: '20px' }}>
+        <h1>HN Jobs - Admin</h1>
+        <p style={{ color: '#666' }}>Sign in to access the admin panel</p>
+        {authError && (
+          <div style={{ padding: '12px 24px', backgroundColor: '#fee', color: '#c00', borderRadius: '8px', marginBottom: '10px' }}>
+            {authError}
+          </div>
+        )}
+        <button
+          onClick={handleLogin}
+          style={{
+            padding: '12px 24px',
+            fontSize: '16px',
+            backgroundColor: '#4285f4',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+            <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+          </svg>
+          Sign in with Google
+        </button>
+      </div>
+    );
+  }
+
   const handleProcessAllUnprocessed = async () => {
     if (!window.confirm(`Are you sure you want to process all ${hnStats ? hnStats.total - hnStats.processed : 'remaining'} unprocessed posts? This will start many workflows.`)) {
       return;
@@ -50,12 +179,8 @@ function App() {
     setTriggerMessage('');
 
     try {
-      const response = await fetch(`${settings.adminApiUrl}/process-all-unprocessed`, {
+      const response = await authFetch(`${settings.adminApiUrl}/process-all-unprocessed`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.adminToken}`,
-        },
       });
 
       const data = await response.json() as any;
@@ -70,7 +195,7 @@ function App() {
       setTimeout(() => {
         refetchJobs();
         // Refresh HN posts to update processed status
-        fetch(`${settings.adminApiUrl}/hn/latest-posts`)
+        authFetch(`${settings.adminApiUrl}/hn/latest-posts`)
           .then(res => res.json())
           .then((data: any) => {
             setHnPosts(data.posts || []);
@@ -93,12 +218,8 @@ function App() {
     setTriggerMessage('');
 
     try {
-      const response = await fetch(`${settings.adminApiUrl}/clear-all-jobs`, {
+      const response = await authFetch(`${settings.adminApiUrl}/clear-all-jobs`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.adminToken}`,
-        },
       });
 
       const data = await response.json() as any;
@@ -119,33 +240,14 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    fetch(`${settings.adminApiUrl}/hn/latest-posts`)
-      .then(res => res.json())
-      .then((data: any) => {
-        setHnPosts(data.posts || []);
-        setHnThreadInfo({ id: data.threadId, title: data.threadTitle });
-        setHnStats(data.stats || null);
-        setIsHnLoading(false);
-      })
-      .catch(err => {
-        console.error('Error fetching HN posts:', err);
-        setIsHnLoading(false);
-      });
-  }, []);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsTriggering(true);
     setTriggerMessage('');
 
     try {
-      const response = await fetch(`${settings.adminApiUrl}/trigger-workflow`, {
+      const response = await authFetch(`${settings.adminApiUrl}/trigger-workflow`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.adminToken}`,
-        },
         body: JSON.stringify({ url }),
       });
 
@@ -170,7 +272,25 @@ function App() {
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '40px' }}>
-      <h1>HN Jobs - Admin</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h1 style={{ margin: 0 }}>HN Jobs - Admin</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ color: '#666' }}>{user.email}</span>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '6px 12px',
+              fontSize: '14px',
+              backgroundColor: '#f0f0f0',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            Logout
+          </button>
+        </div>
+      </div>
       
       <section style={{ marginBottom: '60px', padding: '24px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
         <h2>Trigger New Scrape</h2>
@@ -271,12 +391,8 @@ function App() {
                       onClick={() => {
                         setIsTriggering(true);
                         const plainText = stripHtml(post.text);
-                        fetch(`${settings.adminApiUrl}/trigger-workflow`, {
+                        authFetch(`${settings.adminApiUrl}/trigger-workflow`, {
                           method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${settings.adminToken}`,
-                          },
                           body: JSON.stringify({ hnPostId: post.id, postText: plainText })
                         })
                         .then(async res => {

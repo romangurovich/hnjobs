@@ -1,29 +1,154 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import * as jwt from 'jsonwebtoken';
 import { Client } from '@temporalio/client';
 import { nanoid } from 'nanoid';
-import { settings } from './config';
+import { settings, isEmailAllowed } from './config';
+
+// Extend Express Request to include user info
+declare global {
+  namespace Express {
+    interface Request {
+      user?: { email: string; name: string };
+    }
+  }
+}
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
+app.use(cookieParser());
 
-// For local development, allow requests from the admin UI
-app.use(cors({ origin: settings.adminUiOrigin }));
+// CORS config - allow credentials for cookies
+app.use(cors({
+  origin: settings.adminUiOrigin,
+  credentials: true,
+}));
+
+const COOKIE_NAME = 'admin_session';
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+interface JwtPayload {
+  email: string;
+  name: string;
+}
 
 // Auth middleware for protected routes
 function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+  const token = req.cookies[COOKIE_NAME];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  const token = authHeader.slice(7); // Remove 'Bearer ' prefix
-  if (token !== settings.adminToken) {
-    return res.status(403).json({ error: 'Invalid token' });
+  try {
+    const payload = jwt.verify(token, settings.jwtSecret) as JwtPayload;
+    req.user = payload;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired session' });
   }
-
-  next();
 }
+
+// ============ Google OAuth Routes ============
+
+// Step 1: Redirect to Google
+app.get('/auth/google', (req, res) => {
+  const redirectUri = `${req.protocol}://${req.get('host')}/auth/callback`;
+  const params = new URLSearchParams({
+    client_id: settings.googleClientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'openid email profile',
+    access_type: 'offline',
+    prompt: 'select_account',
+  });
+  
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+});
+
+// Step 2: Handle Google callback
+app.get('/auth/callback', async (req, res) => {
+  const { code, error } = req.query;
+  
+  if (error || !code) {
+    return res.redirect(`${settings.adminUiOrigin}?auth_error=${error || 'no_code'}`);
+  }
+
+  try {
+    const redirectUri = `${req.protocol}://${req.get('host')}/auth/callback`;
+    
+    // Exchange code for tokens
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code: code as string,
+        client_id: settings.googleClientId,
+        client_secret: settings.googleClientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      const errData = await tokenResponse.text();
+      console.error('Token exchange failed:', errData);
+      return res.redirect(`${settings.adminUiOrigin}?auth_error=token_exchange_failed`);
+    }
+
+    const tokens = await tokenResponse.json() as { access_token: string; id_token: string };
+
+    // Get user info
+    const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    });
+
+    if (!userResponse.ok) {
+      return res.redirect(`${settings.adminUiOrigin}?auth_error=userinfo_failed`);
+    }
+
+    const userInfo = await userResponse.json() as { email: string; name: string };
+
+    // Check if email is allowed
+    if (!isEmailAllowed(userInfo.email)) {
+      console.warn(`Access denied for email: ${userInfo.email}`);
+      return res.redirect(`${settings.adminUiOrigin}?auth_error=access_denied`);
+    }
+
+    // Create JWT session token
+    const sessionToken = jwt.sign(
+      { email: userInfo.email, name: userInfo.name },
+      settings.jwtSecret,
+      { expiresIn: '7d' }
+    );
+
+    // Set HTTP-only cookie
+    res.cookie(COOKIE_NAME, sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: COOKIE_MAX_AGE,
+    });
+
+    // Redirect back to admin UI
+    res.redirect(settings.adminUiOrigin);
+  } catch (err) {
+    console.error('OAuth callback error:', err);
+    res.redirect(`${settings.adminUiOrigin}?auth_error=server_error`);
+  }
+});
+
+// Get current user info
+app.get('/auth/me', requireAuth, (req, res) => {
+  res.json({ user: req.user });
+});
+
+// Logout
+app.post('/auth/logout', (req, res) => {
+  res.clearCookie(COOKIE_NAME);
+  res.json({ success: true });
+});
 
 const temporalClient = new Client();
 
@@ -40,7 +165,7 @@ async function fetchWithRetry(url: string, retries = 3, delay = 1000) {
   }
 }
 
-app.get('/hn/latest-posts', async (req, res) => {
+app.get('/hn/latest-posts', requireAuth, async (req, res) => {
   try {
     console.log('Fetching latest "Who is hiring" thread ID...');
     const searchResponse = await fetch(
@@ -325,7 +450,6 @@ app.post('/clear-all-jobs', requireAuth, async (req, res) => {
   }
 });
 
-const port = 8081; // Different port from the main API proxy
-app.listen(port, () => {
-  console.log(`Admin API server listening on http://localhost:${port}`);
+app.listen(settings.port, () => {
+  console.log(`Admin API server listening on http://localhost:${settings.port}`);
 });

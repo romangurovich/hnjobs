@@ -5,7 +5,9 @@
     "module": "commonjs",
     "target": "ESNext",
     "lib": ["ESNext"],
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "types": ["bun", "node"],
+    "esModuleInterop": true
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]
