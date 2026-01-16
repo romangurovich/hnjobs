@@ -457,7 +457,7 @@ const uiDistPath = path.join(__dirname, '../../ui/dist');
 app.use(express.static(uiDistPath));
 
 // SPA fallback - serve index.html for client-side routing
-app.get('*', (req, res, next) => {
+app.get('/{*path}', (req, res, next) => {
   // Skip API and auth routes
   if (req.path.startsWith('/api') || req.path.startsWith('/auth') || 
       req.path.startsWith('/hn') || req.path.startsWith('/trigger') ||
