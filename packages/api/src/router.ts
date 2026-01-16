@@ -92,8 +92,8 @@ const jobRouter = router({
       sortOrder: z.enum(['asc', 'desc']).default('desc'),
     }).optional())
     .query(async ({ input, ctx }) => {
-      let conditions: string[] = [];
-      let params: any[] = [];
+      const conditions: string[] = [];
+      const params: any[] = [];
 
       if (input?.search) {
         conditions.push('(j.company_name LIKE ? OR j.job_title LIKE ?)');
@@ -149,7 +149,7 @@ const jobRouter = router({
       const sortOrder = input?.sortOrder ?? 'desc';
       const offset = (page - 1) * pageSize;
 
-      let query = `
+      const query = `
         SELECT 
           j.*, 
           GROUP_CONCAT(t.name) as technologies_list

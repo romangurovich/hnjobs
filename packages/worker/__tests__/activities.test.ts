@@ -1,4 +1,4 @@
-import { test, expect, describe, mock } from "bun:test";
+import { test, expect, describe } from "bun:test";
 
 // Test helper functions and utilities from activities
 // Note: Full activity tests would require mocking Playwright and BAML

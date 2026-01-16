@@ -8,6 +8,7 @@ import { settings, isEmailAllowed } from './config';
 
 // Extend Express Request to include user info
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: { email: string; name: string };

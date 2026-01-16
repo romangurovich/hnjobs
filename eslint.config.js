@@ -38,8 +38,8 @@ export default tseslint.config(
   // React-specific config for UI packages
   {
     files: ["packages/ui/**/*.{ts,tsx}", "packages/admin/ui/**/*.{ts,tsx}"],
-    extends: [reactHooks.configs["recommended-latest"]],
     plugins: {
+      "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
     },
     languageOptions: {
@@ -48,6 +48,7 @@ export default tseslint.config(
       },
     },
     rules: {
+      ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },
