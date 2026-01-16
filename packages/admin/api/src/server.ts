@@ -151,6 +151,45 @@ app.post('/trigger-workflow', async (req, res) => {
   }
 });
 
+app.post('/clear-all-jobs', async (req, res) => {
+  console.log('Received /clear-all-jobs request');
+
+  try {
+    const response = await fetch(`${settings.apiUrl}/trpc/job.clearAll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+
+    const responseText = await response.text();
+    
+    // Check if response is HTML (error page) instead of JSON
+    if (responseText.startsWith('<!DOCTYPE') || responseText.startsWith('<html')) {
+      console.error('API returned HTML instead of JSON:', responseText.substring(0, 200));
+      throw new Error('API returned an error page. Make sure the API server is running.');
+    }
+
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Failed to parse API response:', responseText.substring(0, 200));
+      throw new Error('Invalid response from API');
+    }
+
+    if (!response.ok) {
+      console.error('Failed to clear jobs:', result);
+      throw new Error(result.error?.message || 'Failed to clear jobs from database');
+    }
+
+    console.log('All jobs cleared successfully');
+    res.json({ success: true, result: result.result?.data });
+  } catch (error: any) {
+    console.error('Error clearing jobs:', error);
+    res.status(500).json({ error: error.message || 'Failed to clear jobs' });
+  }
+});
+
 const port = 8081; // Different port from the main API proxy
 app.listen(port, () => {
   console.log(`Admin API server listening on http://localhost:${port}`);

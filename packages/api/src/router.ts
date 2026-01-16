@@ -199,6 +199,25 @@ const jobRouter = router({
       `).all();
       return results;
     }),
+
+  clearAll: publicProcedure
+    .mutation(async ({ ctx }) => {
+      // Delete all data from tables (order matters due to foreign keys)
+      await ctx.db.prepare('DELETE FROM job_technologies').run();
+      await ctx.db.prepare('DELETE FROM technologies').run();
+      await ctx.db.prepare('DELETE FROM jobs').run();
+      
+      // Reset the auto-increment sequence for technologies table
+      // Use try-catch since sqlite_sequence may not exist if no AUTOINCREMENT was ever used
+      try {
+        await ctx.db.prepare("DELETE FROM sqlite_sequence WHERE name = 'technologies'").run();
+      } catch (e) {
+        // sqlite_sequence doesn't exist yet, which is fine
+        console.log('sqlite_sequence table does not exist, skipping reset');
+      }
+
+      return { success: true };
+    }),
 });
 
 

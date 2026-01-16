@@ -31,6 +31,7 @@ function App() {
   const [url, setUrl] = useState('');
   const [isTriggering, setIsTriggering] = useState(false);
   const [triggerMessage, setTriggerMessage] = useState('');
+  const [isClearing, setIsClearing] = useState(false);
 
   const [hnPosts, setHnPosts] = useState<any[]>([]);
   const [hnStats, setHnStats] = useState<{ total: number; processed: number } | null>(null);
@@ -38,6 +39,38 @@ function App() {
   const [hnThreadInfo, setHnThreadInfo] = useState<{ id: string; title: string } | null>(null);
 
   const { data: jobsResult, isLoading: isJobsLoading, refetch: refetchJobs } = trpc.job.list.useQuery();
+
+  const handleClearAllJobs = async () => {
+    if (!window.confirm('Are you sure you want to delete ALL jobs from the database? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsClearing(true);
+    setTriggerMessage('');
+
+    try {
+      const response = await fetch(`${settings.adminApiUrl}/clear-all-jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await response.json() as any;
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to clear jobs');
+      }
+
+      setTriggerMessage('All jobs cleared successfully!');
+      refetchJobs();
+      // Reset the HN posts processed status
+      setHnPosts(posts => posts.map(p => ({ ...p, isProcessed: false })));
+      setHnStats(stats => stats ? { ...stats, processed: 0 } : null);
+    } catch (error: any) {
+      setTriggerMessage(`Error: ${error.message}`);
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   useEffect(() => {
     fetch(`${settings.adminApiUrl}/hn/latest-posts`)
@@ -212,7 +245,24 @@ function App() {
       <section>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2>Recently Processed Jobs</h2>
-          <button onClick={() => refetchJobs()} style={{ marginLeft: 'auto', padding: '6px 12px', fontSize: '12px' }}>Refresh</button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => refetchJobs()} style={{ padding: '6px 12px', fontSize: '12px' }}>Refresh</button>
+            <button 
+              onClick={handleClearAllJobs} 
+              disabled={isClearing}
+              style={{ 
+                padding: '6px 12px', 
+                fontSize: '12px', 
+                backgroundColor: '#dc3545', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px', 
+                cursor: isClearing ? 'not-allowed' : 'pointer' 
+              }}
+            >
+              {isClearing ? 'Clearing...' : 'Clear All Jobs'}
+            </button>
+          </div>
         </div>
 
         {isJobsLoading ? (
