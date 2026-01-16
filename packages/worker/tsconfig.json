@@ -4,8 +4,15 @@
     "composite": true,
     "rootDir": "src",
     "outDir": "dist",
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": true,
     "module": "commonjs",
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "verbatimModuleSyntax": false,
+    "allowImportingTsExtensions": false,
+    "lib": ["ESNext", "DOM"]
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

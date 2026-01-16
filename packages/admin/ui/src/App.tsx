@@ -84,7 +84,7 @@ function App() {
     authFetch(`${settings.adminApiUrl}/auth/me`)
       .then(async (res) => {
         if (res.ok) {
-          const data = await res.json();
+          const data = await res.json() as { user: User };
           setUser(data.user);
         }
       })

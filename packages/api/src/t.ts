@@ -1,3 +1,4 @@
+/// <reference types="@cloudflare/workers-types" />
 import { initTRPC, TRPCError } from '@trpc/server';
 
 export interface Context {

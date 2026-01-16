@@ -33,7 +33,7 @@ export async function scrapePage(url: string): Promise<string> {
     let content = await page.evaluate(() => {
       // Convert all links to "text (url)" format
       const anchors = document.querySelectorAll('a');
-      anchors.forEach(a => {
+      anchors.forEach((a: HTMLAnchorElement) => {
         const href = a.href;
         const text = a.innerText.trim();
         if (href && text && !text.startsWith('http')) {
@@ -44,7 +44,7 @@ export async function scrapePage(url: string): Promise<string> {
       const toRemove = ['script', 'style', 'noscript', 'iframe', 'header', 'footer', 'nav'];
       toRemove.forEach(tag => {
         const elements = document.querySelectorAll(tag);
-        elements.forEach(el => el.remove());
+        elements.forEach((el: Element) => el.remove());
       });
 
       return document.body.innerText.trim();

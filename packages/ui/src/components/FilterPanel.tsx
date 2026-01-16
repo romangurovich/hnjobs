@@ -71,7 +71,7 @@ export function FilterPanel() {
           value={[minSalary || 0]}
           max={500000}
           step={10000}
-          onValueChange={([value]) => setMinSalary(value === 0 ? null : value)}
+          onValueChange={([value]) => setMinSalary(value === 0 || value === undefined ? null : value)}
         >
           <Slider.Track className="bg-gray-100 relative grow rounded-full h-[4px]">
             <Slider.Range className="absolute bg-primary rounded-full h-full" />

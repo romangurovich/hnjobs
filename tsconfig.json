@@ -34,8 +34,10 @@
     { "path": "packages/core" },
     { "path": "packages/api" },
     { "path": "packages/worker" },
-    { "path": "packages/ui" },
+    { "path": "packages/ui/tsconfig.app.json" },
+    { "path": "packages/ui/tsconfig.node.json" },
     { "path": "packages/admin/api" },
-    { "path": "packages/admin/ui" }
+    { "path": "packages/admin/ui/tsconfig.app.json" },
+    { "path": "packages/admin/ui/tsconfig.node.json" }
   ]
 }
