@@ -76,7 +76,63 @@ Configure these secrets in your repository settings:
 | `ORACLE_ADMIN_HOST` | IP address or hostname of Admin VM |
 | `ORACLE_ADMIN_SSH_KEY` | SSH private key for Admin VM deploy user |
 
-## VM Setup
+## Oracle Cloud Infrastructure Setup
+
+### Automated Setup (Recommended)
+
+Use the OCI setup script to automatically provision all Oracle Cloud infrastructure:
+
+```bash
+# Make the script executable
+chmod +x scripts/oci-setup.sh
+
+# Run the setup script
+./scripts/oci-setup.sh
+```
+
+The script will:
+1. **Verify prerequisites** - Check OCI CLI installation and authentication
+2. **Gather configuration** - Prompt for compartment, region, SSH key, and admin domain
+3. **Create networking** - VCN, Internet Gateway, Route Table, Security List, Subnet
+4. **Provision VMs** - Two ARM A1.Flex VMs (Always Free tier) with cloud-init
+5. **Generate output** - Save all resource IDs to `scripts/infra-output.json`
+
+#### Resources Created
+
+| Resource | Name | Details |
+|----------|------|---------|
+| VCN | `hnjobs-vcn` | 10.0.0.0/16 CIDR |
+| Internet Gateway | `hnjobs-igw` | Public internet access |
+| Route Table | `hnjobs-rt` | Routes 0.0.0.0/0 to IGW |
+| Security List | `hnjobs-sl` | Ingress: SSH, HTTP, HTTPS |
+| Subnet | `hnjobs-subnet` | 10.0.1.0/24 (public) |
+| Worker VM | `hnjobs-worker` | ARM A1.Flex, 2 OCPU, 12GB RAM |
+| Admin VM | `hnjobs-admin` | ARM A1.Flex, 2 OCPU, 12GB RAM + Caddy |
+
+#### Post-Setup Steps
+
+After running the script:
+
+1. **Configure DNS** - Add A record pointing your admin domain to the Admin VM IP
+2. **Clone repository** on each VM:
+   ```bash
+   ssh deploy@<vm-ip>
+   git clone https://github.com/your-org/hnjobs.git /opt/hnjobs
+   cd /opt/hnjobs && bun install
+   ```
+3. **Create .env files** from templates and configure secrets
+4. **Start services**:
+   ```bash
+   sudo systemctl start hnjobs-worker  # On Worker VM
+   sudo systemctl start hnjobs-admin   # On Admin VM
+   ```
+5. **Add GitHub Secrets** - The script outputs the values needed
+
+### Manual Setup
+
+If you prefer to set up VMs manually or already have existing infrastructure:
+
+## VM Setup (Manual)
 
 ### Prerequisites
 
@@ -168,14 +224,13 @@ On each Oracle Cloud VM:
 
 2. **Create environment file** at `/opt/hnjobs/packages/admin/api/.env`:
    ```bash
-   PORT=3001
+   PORT=8081
    API_URL=https://api.hnjobs.example.com
    ADMIN_UI_ORIGIN=https://admin.hnjobs.example.com
    GOOGLE_CLIENT_ID=your-google-client-id
    GOOGLE_CLIENT_SECRET=your-google-client-secret
-   JWT_SECRET=your-jwt-secret
+   JWT_SECRET=your-jwt-secret-at-least-32-characters
    ALLOWED_EMAILS=admin@example.com
-   TEMPORAL_ADDRESS=your-temporal-server:7233
    ```
 
 3. **Build Admin UI** (first time):
@@ -193,7 +248,21 @@ On each Oracle Cloud VM:
    sudo systemctl start hnjobs-admin
    ```
 
-5. **Set up reverse proxy** (nginx example):
+5. **Set up reverse proxy**:
+
+   **Option A: Caddy (Recommended - automatic HTTPS)**
+   
+   Caddy is installed automatically by the OCI setup script. Configuration is at `/etc/caddy/Caddyfile`:
+   ```
+   admin.hnjobs.example.com {
+     reverse_proxy localhost:8081
+     encode gzip zstd
+   }
+   ```
+   
+   Reload after changes: `sudo systemctl reload caddy`
+
+   **Option B: Nginx (manual SSL)**
    ```nginx
    server {
        listen 443 ssl;
@@ -203,7 +272,7 @@ On each Oracle Cloud VM:
        ssl_certificate_key /path/to/key.pem;
 
        location / {
-           proxy_pass http://127.0.0.1:3001;
+           proxy_pass http://127.0.0.1:8081;
            proxy_http_version 1.1;
            proxy_set_header Upgrade $http_upgrade;
            proxy_set_header Connection 'upgrade';

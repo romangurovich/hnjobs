@@ -1,0 +1,158 @@
+#cloud-config
+# Cloud-init configuration for HN Jobs Worker VM
+# This script runs on first boot to set up the Temporal worker environment
+
+# Set hostname
+hostname: hnjobs-worker
+
+# Create deploy user
+users:
+  - name: deploy
+    groups: [wheel]
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${SSH_PUBLIC_KEY}
+
+# Install packages
+packages:
+  - git
+  - curl
+  - unzip
+  - htop
+  - jq
+
+# Write configuration files
+write_files:
+  # Systemd service for the worker
+  - path: /etc/systemd/system/hnjobs-worker.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=HN Jobs Temporal Worker
+      After=network.target
+      
+      [Service]
+      Type=simple
+      User=deploy
+      Group=deploy
+      WorkingDirectory=/opt/hnjobs/packages/worker
+      ExecStart=/home/deploy/.bun/bin/bun run src/index.ts
+      Restart=on-failure
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
+      Environment=NODE_ENV=production
+      
+      # Resource limits
+      LimitNOFILE=65535
+      
+      [Install]
+      WantedBy=multi-user.target
+
+  # Environment file template
+  - path: /opt/hnjobs/packages/worker/.env.template
+    owner: deploy:deploy
+    permissions: '0600'
+    content: |
+      # Temporal Configuration
+      TEMPORAL_ADDRESS=your-temporal-server:7233
+      TEMPORAL_NAMESPACE=default
+      
+      # API Configuration
+      API_URL=https://api.hnjobs.example.com
+      API_TOKEN=your-api-token
+      
+      # Anthropic API for AI processing
+      ANTHROPIC_API_KEY=your-anthropic-key
+
+  # Sudoers entry for deploy user to restart service
+  - path: /etc/sudoers.d/deploy-hnjobs
+    owner: root:root
+    permissions: '0440'
+    content: |
+      deploy ALL=(ALL) NOPASSWD: /bin/systemctl restart hnjobs-worker
+      deploy ALL=(ALL) NOPASSWD: /bin/systemctl stop hnjobs-worker
+      deploy ALL=(ALL) NOPASSWD: /bin/systemctl start hnjobs-worker
+      deploy ALL=(ALL) NOPASSWD: /bin/systemctl status hnjobs-worker
+
+  # Setup script that runs after cloud-init
+  - path: /opt/setup-worker.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+      
+      echo "=== HN Jobs Worker Setup Script ==="
+      
+      # Install Bun for deploy user
+      echo "Installing Bun..."
+      sudo -u deploy bash -c 'curl -fsSL https://bun.sh/install | bash'
+      
+      # Add bun to PATH for deploy user
+      echo 'export BUN_INSTALL="$HOME/.bun"' >> /home/deploy/.bashrc
+      echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> /home/deploy/.bashrc
+      
+      # Create application directory
+      echo "Creating application directory..."
+      mkdir -p /opt/hnjobs/packages/worker
+      chown -R deploy:deploy /opt/hnjobs
+      
+      # Install Playwright dependencies for web scraping
+      echo "Installing Playwright dependencies..."
+      dnf install -y \
+        alsa-lib \
+        atk \
+        at-spi2-atk \
+        cups-libs \
+        libdrm \
+        libXcomposite \
+        libXdamage \
+        libXext \
+        libXrandr \
+        mesa-libgbm \
+        nss \
+        pango \
+        xorg-x11-fonts-Type1 \
+        xorg-x11-fonts-misc || true
+      
+      # Enable the service (but don't start - needs .env first)
+      echo "Enabling hnjobs-worker service..."
+      systemctl daemon-reload
+      systemctl enable hnjobs-worker
+      
+      echo "=== Worker setup complete! ==="
+      echo "Next steps:"
+      echo "1. Clone repository: git clone <repo> /opt/hnjobs"
+      echo "2. Create .env file: cp /opt/hnjobs/packages/worker/.env.template /opt/hnjobs/packages/worker/.env"
+      echo "3. Edit .env with your values"
+      echo "4. Install dependencies: cd /opt/hnjobs && bun install"
+      echo "5. Start service: sudo systemctl start hnjobs-worker"
+
+# Run commands
+runcmd:
+  # Update system
+  - dnf update -y
+  
+  # Set timezone
+  - timedatectl set-timezone UTC
+  
+  # Configure firewall
+  - firewall-cmd --permanent --add-service=ssh
+  - firewall-cmd --reload
+  
+  # Run the setup script
+  - /opt/setup-worker.sh
+  
+  # Log completion
+  - echo "Cloud-init completed at $(date)" >> /var/log/cloud-init-complete.log
+
+# Final message
+final_message: |
+  HN Jobs Worker VM initialization complete!
+  System boot took $UPTIME seconds.
+  
+  SSH in as: ssh deploy@<public-ip>
+  Check logs: sudo journalctl -u hnjobs-worker -f

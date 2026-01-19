@@ -1,0 +1,217 @@
+#cloud-config
+# Cloud-init configuration for HN Jobs Admin VM
+# This script runs on first boot to set up the Admin API + UI with Caddy HTTPS
+
+# Set hostname
+hostname: hnjobs-admin
+
+# Create deploy user
+users:
+  - name: deploy
+    groups: [wheel]
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${SSH_PUBLIC_KEY}
+
+# Install packages
+packages:
+  - git
+  - curl
+  - unzip
+  - htop
+  - jq
+
+# Write configuration files
+write_files:
+  # Systemd service for the admin API
+  - path: /etc/systemd/system/hnjobs-admin.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=HN Jobs Admin API
+      After=network.target
+      
+      [Service]
+      Type=simple
+      User=deploy
+      Group=deploy
+      WorkingDirectory=/opt/hnjobs/packages/admin/api
+      ExecStart=/home/deploy/.bun/bin/bun run src/server.ts
+      Restart=on-failure
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
+      Environment=NODE_ENV=production
+      
+      # Resource limits
+      LimitNOFILE=65535
+      
+      [Install]
+      WantedBy=multi-user.target
+
+  # Caddy configuration file
+  - path: /etc/caddy/Caddyfile
+    owner: root:root
+    permissions: '0644'
+    content: |
+      # HN Jobs Admin - Caddy Configuration
+      # Auto-HTTPS with Let's Encrypt
+      
+      ${ADMIN_DOMAIN} {
+        # Reverse proxy to Admin API
+        reverse_proxy localhost:8081
+        
+        # Enable compression
+        encode gzip zstd
+        
+        # Security headers
+        header {
+          # Enable HSTS
+          Strict-Transport-Security "max-age=31536000; includeSubDomains"
+          # Prevent clickjacking
+          X-Frame-Options "DENY"
+          # Prevent MIME sniffing
+          X-Content-Type-Options "nosniff"
+          # XSS protection
+          X-XSS-Protection "1; mode=block"
+          # Referrer policy
+          Referrer-Policy "strict-origin-when-cross-origin"
+        }
+        
+        # Logging
+        log {
+          output file /var/log/caddy/access.log {
+            roll_size 10mb
+            roll_keep 5
+          }
+        }
+      }
+
+  # Environment file template for admin API
+  - path: /opt/hnjobs/packages/admin/api/.env.template
+    owner: deploy:deploy
+    permissions: '0600'
+    content: |
+      # Server Configuration
+      PORT=8081
+      
+      # API Configuration
+      API_URL=https://api.hnjobs.example.com
+      ADMIN_UI_ORIGIN=https://${ADMIN_DOMAIN}
+      
+      # Google OAuth Configuration
+      GOOGLE_CLIENT_ID=your-google-client-id
+      GOOGLE_CLIENT_SECRET=your-google-client-secret
+      
+      # JWT Configuration (generate with: openssl rand -base64 32)
+      JWT_SECRET=your-jwt-secret-at-least-32-chars
+      
+      # Allowed admin emails (comma-separated)
+      # Use @domain.com prefix for domain matching
+      ALLOWED_EMAILS=admin@example.com
+
+  # Sudoers entry for deploy user
+  - path: /etc/sudoers.d/deploy-hnjobs
+    owner: root:root
+    permissions: '0440'
+    content: |
+      deploy ALL=(ALL) NOPASSWD: /bin/systemctl restart hnjobs-admin
+      deploy ALL=(ALL) NOPASSWD: /bin/systemctl stop hnjobs-admin
+      deploy ALL=(ALL) NOPASSWD: /bin/systemctl start hnjobs-admin
+      deploy ALL=(ALL) NOPASSWD: /bin/systemctl status hnjobs-admin
+      deploy ALL=(ALL) NOPASSWD: /bin/systemctl restart caddy
+      deploy ALL=(ALL) NOPASSWD: /bin/systemctl reload caddy
+
+  # Setup script that runs after cloud-init
+  - path: /opt/setup-admin.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+      
+      echo "=== HN Jobs Admin VM Setup Script ==="
+      
+      # Install Bun for deploy user
+      echo "Installing Bun..."
+      sudo -u deploy bash -c 'curl -fsSL https://bun.sh/install | bash'
+      
+      # Add bun to PATH for deploy user
+      echo 'export BUN_INSTALL="$HOME/.bun"' >> /home/deploy/.bashrc
+      echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> /home/deploy/.bashrc
+      
+      # Create application directory structure
+      echo "Creating application directories..."
+      mkdir -p /opt/hnjobs/packages/admin/api
+      mkdir -p /opt/hnjobs/packages/admin/ui/dist
+      chown -R deploy:deploy /opt/hnjobs
+      
+      # Install Caddy
+      echo "Installing Caddy..."
+      dnf install -y 'dnf-command(copr)'
+      dnf copr enable -y @caddy/caddy
+      dnf install -y caddy
+      
+      # Create Caddy log directory
+      mkdir -p /var/log/caddy
+      chown caddy:caddy /var/log/caddy
+      
+      # Enable and start Caddy
+      echo "Enabling Caddy service..."
+      systemctl daemon-reload
+      systemctl enable caddy
+      systemctl start caddy
+      
+      # Enable the admin service (but don't start - needs .env first)
+      echo "Enabling hnjobs-admin service..."
+      systemctl enable hnjobs-admin
+      
+      echo "=== Admin VM setup complete! ==="
+      echo ""
+      echo "Next steps:"
+      echo "1. Configure DNS: Point ${ADMIN_DOMAIN:-your-domain} to this server's IP"
+      echo "2. Clone repository: git clone <repo> /opt/hnjobs"
+      echo "3. Create .env file from template"
+      echo "4. Install dependencies: cd /opt/hnjobs && bun install"
+      echo "5. Build Admin UI: cd packages/admin/ui && bun run build"
+      echo "6. Start service: sudo systemctl start hnjobs-admin"
+      echo "7. Reload Caddy: sudo systemctl reload caddy"
+      echo ""
+      echo "Caddy will automatically obtain SSL certificate once DNS is configured."
+
+# Run commands
+runcmd:
+  # Update system
+  - dnf update -y
+  
+  # Set timezone
+  - timedatectl set-timezone UTC
+  
+  # Configure firewall for HTTP, HTTPS, SSH
+  - firewall-cmd --permanent --add-service=ssh
+  - firewall-cmd --permanent --add-service=http
+  - firewall-cmd --permanent --add-service=https
+  - firewall-cmd --reload
+  
+  # Run the setup script
+  - /opt/setup-admin.sh
+  
+  # Log completion
+  - echo "Cloud-init completed at $(date)" >> /var/log/cloud-init-complete.log
+
+# Final message
+final_message: |
+  HN Jobs Admin VM initialization complete!
+  System boot took $UPTIME seconds.
+  
+  SSH in as: ssh deploy@<public-ip>
+  
+  Services:
+    - Caddy (HTTPS reverse proxy): systemctl status caddy
+    - Admin API: systemctl status hnjobs-admin
+  
+  Logs:
+    - Caddy access: /var/log/caddy/access.log
+    - Admin API: journalctl -u hnjobs-admin -f
