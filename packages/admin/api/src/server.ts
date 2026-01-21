@@ -172,7 +172,7 @@ app.get('/hn/latest-posts', requireAuth, async (req, res) => {
   try {
     console.log('Fetching latest "Who is hiring" thread ID...');
     const searchResponse = await fetch(
-      'https://hn.algolia.com/api/v1/search_by_date?query=Ask%20HN%3A%20Who%20is%20hiring%3F&tags=story&hitsPerPage=5'
+      'https://hn.algolia.com/api/v1/search_by_date?tags=story,author_whoishiring&hitsPerPage=5'
     );
     interface HNSearchHit { objectID: string; title: string }
     interface HNSearchResponse { hits: HNSearchHit[] }
@@ -309,7 +309,7 @@ app.post('/process-all-unprocessed', requireAuth, async (req, res) => {
   try {
     // 1. Fetch the latest "Who is hiring" thread
     const searchResponse = await fetch(
-      'https://hn.algolia.com/api/v1/search_by_date?query=Ask%20HN%3A%20Who%20is%20hiring%3F&tags=story&hitsPerPage=5'
+      'https://hn.algolia.com/api/v1/search_by_date?tags=story,author_whoishiring&hitsPerPage=5'
     );
     interface HNSearchHit2 { objectID: string; title: string }
     interface HNSearchResponse2 { hits: HNSearchHit2[] }
