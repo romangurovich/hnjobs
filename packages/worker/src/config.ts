@@ -17,5 +17,8 @@ function requireUrl(name: string): string {
 export const settings = {
   apiUrl: requireUrl('API_URL'),
   apiToken: requireEnv('API_TOKEN'),
+  // Temporal configuration
+  temporalAddress: process.env.TEMPORAL_ADDRESS || 'localhost:7233',
+  temporalNamespace: process.env.TEMPORAL_NAMESPACE || 'default',
 };
 

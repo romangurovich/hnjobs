@@ -101,6 +101,10 @@ write_files:
       API_URL=https://api.hnjobs.example.com
       ADMIN_UI_ORIGIN=https://${ADMIN_DOMAIN}
       
+      # Temporal Configuration
+      TEMPORAL_ADDRESS=hnjobs-temporal:7233
+      TEMPORAL_NAMESPACE=default
+      
       # Google OAuth Configuration
       GOOGLE_CLIENT_ID=your-google-client-id
       GOOGLE_CLIENT_SECRET=your-google-client-secret
@@ -194,6 +198,13 @@ runcmd:
   - firewall-cmd --permanent --add-service=http
   - firewall-cmd --permanent --add-service=https
   - firewall-cmd --reload
+  
+  # Install OCI Monitoring Agent
+  - |
+    echo "Installing OCI Unified Monitoring Agent..."
+    rpm -ivh https://objectstorage.us-phoenix-1.oraclecloud.com/n/axqc4ws2v99q/b/unified-monitoring-agent/o/unified-monitoring-agent-latest.rpm || true
+    systemctl enable unified-monitoring-agent
+    systemctl start unified-monitoring-agent
   
   # Run the setup script
   - /opt/setup-admin.sh

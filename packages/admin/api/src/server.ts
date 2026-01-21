@@ -3,9 +3,12 @@ import path from 'path';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import * as jwt from 'jsonwebtoken';
-import { Client } from '@temporalio/client';
+import { Connection, Client } from '@temporalio/client';
 import { nanoid } from 'nanoid';
 import { settings, isEmailAllowed } from './config';
+
+// Temporal client - initialized on startup
+let temporalClient: Client;
 
 // Extend Express Request to include user info
 declare global {
@@ -151,8 +154,6 @@ app.post('/auth/logout', (req, res) => {
   res.clearCookie(COOKIE_NAME);
   res.json({ success: true });
 });
-
-const temporalClient = new Client();
 
 async function fetchWithRetry(url: string, retries = 3, delay = 1000) {
   for (let i = 0; i < retries; i++) {
@@ -486,6 +487,26 @@ app.get('/{*path}', (req, res, next) => {
   res.sendFile(path.join(uiDistPath, 'index.html'));
 });
 
-app.listen(settings.port, () => {
-  console.log(`Admin API server listening on http://localhost:${settings.port}`);
+async function startServer() {
+  // Connect to Temporal
+  console.log(`Connecting to Temporal at ${settings.temporalAddress}...`);
+  const connection = await Connection.connect({
+    address: settings.temporalAddress,
+  });
+  
+  temporalClient = new Client({
+    connection,
+    namespace: settings.temporalNamespace,
+  });
+  console.log(`Connected to Temporal namespace "${settings.temporalNamespace}"`);
+
+  // Start Express server
+  app.listen(settings.port, () => {
+    console.log(`Admin API server listening on http://localhost:${settings.port}`);
+  });
+}
+
+startServer().catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
 });

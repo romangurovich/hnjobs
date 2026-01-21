@@ -15,6 +15,10 @@ const envSchema = z.object({
   // Comma-separated list of allowed email addresses or domains
   // e.g., "user@example.com,@company.com" (prefix with @ for domain matching)
   ALLOWED_EMAILS: z.string().min(1),
+  
+  // Temporal configuration
+  TEMPORAL_ADDRESS: z.string().default('localhost:7233'),
+  TEMPORAL_NAMESPACE: z.string().default('default'),
 });
 
 const parsed = envSchema.parse(process.env);
@@ -33,6 +37,9 @@ export const settings = {
   googleClientSecret: parsed.GOOGLE_CLIENT_SECRET,
   jwtSecret: parsed.JWT_SECRET,
   allowedEmails,
+  // Temporal
+  temporalAddress: parsed.TEMPORAL_ADDRESS,
+  temporalNamespace: parsed.TEMPORAL_NAMESPACE,
 };
 
 /**

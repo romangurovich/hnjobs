@@ -56,8 +56,8 @@ write_files:
     owner: deploy:deploy
     permissions: '0600'
     content: |
-      # Temporal Configuration
-      TEMPORAL_ADDRESS=your-temporal-server:7233
+      # Temporal Configuration (use Temporal VM's IP or internal DNS)
+      TEMPORAL_ADDRESS=hnjobs-temporal:7233
       TEMPORAL_NAMESPACE=default
       
       # API Configuration
@@ -142,6 +142,13 @@ runcmd:
   # Configure firewall
   - firewall-cmd --permanent --add-service=ssh
   - firewall-cmd --reload
+  
+  # Install OCI Monitoring Agent
+  - |
+    echo "Installing OCI Unified Monitoring Agent..."
+    rpm -ivh https://objectstorage.us-phoenix-1.oraclecloud.com/n/axqc4ws2v99q/b/unified-monitoring-agent/o/unified-monitoring-agent-latest.rpm || true
+    systemctl enable unified-monitoring-agent
+    systemctl start unified-monitoring-agent
   
   # Run the setup script
   - /opt/setup-worker.sh
