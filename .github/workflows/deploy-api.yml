@@ -1,47 +1,38 @@
 name: Deploy API
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
     branches: [main]
+    paths:
+      - packages/api/**
+      - packages/core/**
+      - .github/workflows/deploy-api.yml
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-api-production
+  cancel-in-progress: false
 
 jobs:
   deploy:
     name: Deploy to Cloudflare Workers
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    timeout-minutes: 15
+    environment: production
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Check for relevant changes
-        id: changes
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "should_deploy=true" >> $GITHUB_OUTPUT
-          else
-            CHANGED=$(git diff --name-only HEAD~1 HEAD | grep -E '^packages/(api|core)/' || true)
-            if [ -n "$CHANGED" ]; then
-              echo "should_deploy=true" >> $GITHUB_OUTPUT
-            else
-              echo "should_deploy=false" >> $GITHUB_OUTPUT
-            fi
-          fi
 
       - uses: oven-sh/setup-bun@v2
-        if: steps.changes.outputs.should_deploy == 'true'
         with:
           bun-version: latest
 
       - name: Install dependencies
-        if: steps.changes.outputs.should_deploy == 'true'
         run: bun install --frozen-lockfile
 
       - name: Deploy to Cloudflare Workers
-        if: steps.changes.outputs.should_deploy == 'true'
         run: bunx wrangler deploy
         working-directory: packages/api
         env:

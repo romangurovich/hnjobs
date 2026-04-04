@@ -11,11 +11,16 @@ export function FilterPanel() {
     minSalary, setMinSalary,
     technologies: selectedTechs, toggleTechnology,
     locations: selectedLocations, toggleLocation,
+    selectedMonth,
     resetFilters
   } = useFilterStore();
 
-  const { data: popularTechs } = trpc.job.getTechnologies.useQuery();
-  const { data: popularLocations } = trpc.job.getLocations.useQuery();
+  const { data: popularTechs } = trpc.job.getTechnologies.useQuery({
+    month: selectedMonth,
+  });
+  const { data: popularLocations } = trpc.job.getLocations.useQuery({
+    month: selectedMonth,
+  });
 
   const levels: RoleLevel[] = ['JUNIOR', 'MID', 'SENIOR', 'STAFF', 'PRINCIPAL', 'MANAGER'];
   const remotes: RemoteStatus[] = ['REMOTE_ONLY', 'HYBRID', 'ON_SITE'];

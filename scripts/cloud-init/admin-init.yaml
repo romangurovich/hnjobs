@@ -9,7 +9,6 @@ hostname: hnjobs-admin
 users:
   - name: deploy
     groups: [wheel]
-    sudo: ['ALL=(ALL) NOPASSWD:ALL']
     shell: /bin/bash
     ssh_authorized_keys:
       - ${SSH_PUBLIC_KEY}
@@ -44,6 +43,7 @@ write_files:
       StandardOutput=journal
       StandardError=journal
       Environment=NODE_ENV=production
+      EnvironmentFile=-/opt/hnjobs/packages/admin/api/.env
       
       # Resource limits
       LimitNOFILE=65535
@@ -176,7 +176,7 @@ write_files:
       echo ""
       echo "Next steps:"
       echo "1. Configure DNS: Point ${ADMIN_DOMAIN:-your-domain} to this server's IP"
-      echo "2. Clone repository: git clone <repo> /opt/hnjobs"
+      echo "2. Clone repository: git clone ${REPO_URL} /opt/hnjobs"
       echo "3. Create .env file from template"
       echo "4. Install dependencies: cd /opt/hnjobs && bun install"
       echo "5. Build Admin UI: cd packages/admin/ui && bun run build"

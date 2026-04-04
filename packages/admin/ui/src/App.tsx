@@ -58,7 +58,7 @@ function App() {
   const [hnPosts, setHnPosts] = useState<HNPost[]>([]);
   const [hnStats, setHnStats] = useState<{ total: number; processed: number } | null>(null);
   const [isHnLoading, setIsHnLoading] = useState(true);
-  const [hnThreadInfo, setHnThreadInfo] = useState<{ id: string; title: string } | null>(null);
+  const [hnThreadInfo, setHnThreadInfo] = useState<{ id: string; title: string; month: string } | null>(null);
   const [isProcessingAll, setIsProcessingAll] = useState(false);
 
   const { data: jobsResult, isLoading: isJobsLoading, refetch: refetchJobs } = trpc.job.list.useQuery();
@@ -110,12 +110,12 @@ function App() {
   useEffect(() => {
     if (!user) return; // Only fetch when authenticated
     
-    interface HNPostsResponse { posts: HNPost[]; threadId: string; threadTitle: string; stats: { total: number; processed: number } }
+    interface HNPostsResponse { posts: HNPost[]; threadId: string; threadTitle: string; threadMonth: string; stats: { total: number; processed: number } }
     authFetch(`${settings.adminApiUrl}/hn/latest-posts`)
       .then(res => res.json() as Promise<HNPostsResponse>)
       .then((data) => {
         setHnPosts(data.posts || []);
-        setHnThreadInfo({ id: data.threadId, title: data.threadTitle });
+        setHnThreadInfo({ id: data.threadId, title: data.threadTitle, month: data.threadMonth });
         setHnStats(data.stats || null);
         setIsHnLoading(false);
       })
@@ -282,7 +282,7 @@ function App() {
     created_at: string;
     technologies: string[];
   }
-  const recentJobs = (jobsResult?.jobs || []) as AdminJob[];
+  const recentJobs = (jobsResult?.jobs || []) as unknown as AdminJob[];
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '40px' }}>
@@ -407,7 +407,7 @@ function App() {
                         const plainText = stripHtml(post.text);
                         authFetch(`${settings.adminApiUrl}/trigger-workflow`, {
                           method: 'POST',
-                          body: JSON.stringify({ hnPostId: post.id, postText: plainText })
+                          body: JSON.stringify({ hnPostId: post.id, postText: plainText, listingMonth: hnThreadInfo?.month })
                         })
                         .then(async res => {
                           interface TriggerResponse { workflowId?: string; error?: string }

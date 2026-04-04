@@ -18,8 +18,11 @@ CREATE TABLE jobs (
   summary TEXT,
   processed_from TEXT NOT NULL, -- 'LINK' or 'POST_CONTENT'
   raw_content TEXT,
+  listing_month TEXT, -- YYYY-MM for the HN thread month
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_jobs_listing_month ON jobs(listing_month);
 
 CREATE TABLE technologies (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

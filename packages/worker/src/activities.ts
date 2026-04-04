@@ -174,7 +174,14 @@ interface JobData {
   technologies: string[];
 }
 
-export async function persistJobData(jobData: JobData, rawContent: string, hnPostId: string | null, jobUrl: string | null, processedFrom: 'LINK' | 'POST_CONTENT') {
+export async function persistJobData(
+  jobData: JobData,
+  rawContent: string,
+  hnPostId: string | null,
+  jobUrl: string | null,
+  processedFrom: 'LINK' | 'POST_CONTENT',
+  listingMonth?: string | null,
+) {
 
 
 
@@ -202,6 +209,7 @@ export async function persistJobData(jobData: JobData, rawContent: string, hnPos
       hn_post_id: hnPostId,
       job_url: jobUrl,
       processed_from: processedFrom,
+      listing_month: listingMonth ?? undefined,
     });
 
 

@@ -67,6 +67,7 @@ Runs on all pushes and pull requests to `main`:
 | `deploy-admin.yml` | Changes to `packages/admin/**` | Oracle AMD VM |
 
 All deployment workflows can also be triggered manually via `workflow_dispatch`.
+Use branch protection on `main` to require `CI` before merge so deployment runs only on validated commits.
 
 ## GitHub Secrets
 
@@ -149,12 +150,15 @@ After running the script:
    # Should show: temporal-server, temporal-ui, temporal-postgresql
    ```
 2. **Configure DNS** - Add A record pointing your admin domain to the Admin VM IP
-3. **Clone repository** on Worker and Admin VMs (not Temporal):
+3. **Clone repository**:
    ```bash
    ssh deploy@<vm-ip>
-   git clone https://github.com/your-org/hnjobs.git /opt/hnjobs
+   git clone <your-repo-url> /opt/hnjobs
    cd /opt/hnjobs && bun install
    ```
+   Notes:
+   - Worker bootstrap attempts this automatically using the `REPO_URL` entered in `scripts/oci-setup.sh`.
+   - Admin VM still requires this step if `/opt/hnjobs` does not already exist.
 4. **Create .env files** from templates - set `TEMPORAL_ADDRESS` to Temporal VM IP:
    ```bash
    TEMPORAL_ADDRESS=<temporal-ip>:7233
@@ -414,6 +418,12 @@ On each Oracle Cloud VM:
    cd packages/api
    bunx wrangler d1 execute hnjobs-db --remote --file=schema.sql
    ```
+   For an existing database that should keep its data, run the incremental
+   `listing_month` migration instead:
+   ```bash
+   cd packages/api
+   bun run db:migrate:listing-month:remote
+   ```
 4. Set the API token secret:
    ```bash
    bunx wrangler secret put API_TOKEN
@@ -446,7 +456,7 @@ bunx wrangler pages deploy dist --project-name=hnjobs-ui
 ```bash
 # Deploy to both worker VMs
 for host in worker-1-ip worker-2-ip; do
-  ssh deploy@$host "cd /opt/hnjobs && git pull && bun install && sudo systemctl restart hnjobs-worker"
+  ssh deploy@$host "cd /opt/hnjobs && git switch main || git switch -c main --track origin/main && git pull --ff-only origin main && bun install --frozen-lockfile && sudo systemctl restart hnjobs-worker"
 done
 ```
 
@@ -455,7 +465,7 @@ done
 cd packages/admin/ui
 bun run build
 scp -r dist/* deploy@admin-vm:/opt/hnjobs/packages/admin/ui/dist/
-ssh deploy@admin-vm "cd /opt/hnjobs && git pull && bun install && sudo systemctl restart hnjobs-admin"
+ssh deploy@admin-vm "cd /opt/hnjobs && git switch main || git switch -c main --track origin/main && git pull --ff-only origin main && bun install --frozen-lockfile && sudo systemctl restart hnjobs-admin"
 ```
 
 ## Monitoring & Logging

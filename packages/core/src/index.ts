@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const listingMonthSchema = z.string().regex(/^\d{4}-\d{2}$/);
+
 export const jobInputSchema = z.object({
   company_name: z.string(),
   job_title: z.string(),
@@ -16,6 +18,7 @@ export const jobInputSchema = z.object({
   job_url: z.string().nullable().optional(),
   processed_from: z.enum(['LINK', 'POST_CONTENT']),
   raw_content: z.string().optional(),
+  listing_month: listingMonthSchema.optional(),
 });
 
 export type JobInput = z.infer<typeof jobInputSchema>;

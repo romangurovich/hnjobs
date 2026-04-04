@@ -13,6 +13,7 @@ describe("API Router Input Schemas", () => {
       locations: z.array(z.string()).optional(),
       minSalary: z.number().nullable().optional(),
       technologies: z.array(z.string()).optional(),
+      month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
       page: z.number().default(1),
       pageSize: z.number().default(10),
       sortBy: z
@@ -47,6 +48,7 @@ describe("API Router Input Schemas", () => {
       remoteStatuses: ["remote", "hybrid"],
       technologies: ["TypeScript", "React"],
       minSalary: 100000,
+      month: "2026-03",
       page: 2,
       pageSize: 25,
       sortBy: "salary_max",
@@ -55,9 +57,17 @@ describe("API Router Input Schemas", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data?.roleLevels).toEqual(["senior", "lead"]);
+      expect(result.data?.month).toBe("2026-03");
       expect(result.data?.page).toBe(2);
       expect(result.data?.sortBy).toBe("salary_max");
     }
+  });
+
+  test("list input rejects invalid month format", () => {
+    const result = listInputSchema.safeParse({
+      month: "March-2026",
+    });
+    expect(result.success).toBe(false);
   });
 
   test("list input rejects invalid sortBy value", () => {

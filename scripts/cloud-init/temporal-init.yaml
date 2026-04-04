@@ -10,7 +10,6 @@ hostname: hnjobs-temporal
 users:
   - name: deploy
     groups: [wheel, docker]
-    sudo: ['ALL=(ALL) NOPASSWD:ALL']
     shell: /bin/bash
     ssh_authorized_keys:
       - ${SSH_PUBLIC_KEY}
@@ -53,13 +52,13 @@ write_files:
             retries: 5
         
         temporal:
-          image: temporalio/auto-setup:1.24
+          image: temporalio/auto-setup:1.29.3
           container_name: temporal-server
           depends_on:
             postgresql:
               condition: service_healthy
           environment:
-            - DB=postgresql
+            - DB=postgres12
             - DB_PORT=5432
             - POSTGRES_USER=temporal
             - POSTGRES_PWD=temporal_password_change_me
@@ -79,7 +78,7 @@ write_files:
             retries: 5
         
         temporal-ui:
-          image: temporalio/ui:2.26
+          image: temporalio/ui:2.45.3
           container_name: temporal-ui
           depends_on:
             - temporal
@@ -93,7 +92,7 @@ write_files:
           restart: unless-stopped
         
         temporal-admin-tools:
-          image: temporalio/admin-tools:1.24
+          image: temporalio/admin-tools:1.29.3
           container_name: temporal-admin-tools
           depends_on:
             - temporal
@@ -162,6 +161,17 @@ write_files:
         <port protocol="tcp" port="7233"/>
         <port protocol="tcp" port="8080"/>
       </service>
+
+  # Sudoers entry for controlled Temporal operations
+  - path: /etc/sudoers.d/deploy-temporal
+    owner: root:root
+    permissions: '0440'
+    content: |
+      deploy ALL=(ALL) NOPASSWD: /bin/systemctl start temporal
+      deploy ALL=(ALL) NOPASSWD: /bin/systemctl stop temporal
+      deploy ALL=(ALL) NOPASSWD: /bin/systemctl restart temporal
+      deploy ALL=(ALL) NOPASSWD: /bin/systemctl status temporal
+      deploy ALL=(ALL) NOPASSWD: /bin/journalctl -u temporal*
 
 # Run commands on first boot
 runcmd:

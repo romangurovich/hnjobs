@@ -38,6 +38,49 @@ interface JwtPayload {
   name: string;
 }
 
+const HN_MONTH_NAMES = [
+  'january',
+  'february',
+  'march',
+  'april',
+  'may',
+  'june',
+  'july',
+  'august',
+  'september',
+  'october',
+  'november',
+  'december',
+];
+
+const getCurrentMonthKey = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const extractListingMonthFromThreadTitle = (title: string | undefined) => {
+  if (!title) {
+    return null;
+  }
+
+  const match = title.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b/i);
+  if (!match) {
+    return null;
+  }
+
+  const [, monthName, year] = match;
+  if (!monthName || !year) {
+    return null;
+  }
+
+  const monthIndex = HN_MONTH_NAMES.indexOf(monthName.toLowerCase());
+  if (monthIndex === -1) {
+    return null;
+  }
+
+  return `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+};
+
 // Auth middleware for protected routes
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = req.cookies[COOKIE_NAME];
@@ -196,11 +239,13 @@ app.get('/hn/latest-posts', requireAuth, async (req, res) => {
     interface HNThread { title: string; kids?: number[] }
     const threadResponse = await fetch(`https://hacker-news.firebaseio.com/v0/item/${threadId}.json`);
     const threadData = await threadResponse.json() as HNThread;
+    const threadMonth = extractListingMonthFromThreadTitle(threadData.title) ?? getCurrentMonthKey();
 
     if (!threadData.kids || threadData.kids.length === 0) {
       return res.json({
         threadId,
         threadTitle: threadData.title,
+        threadMonth,
         posts: [],
         stats: { total: 0, processed: 0 }
       });
@@ -249,6 +294,7 @@ app.get('/hn/latest-posts', requireAuth, async (req, res) => {
     res.json({
       threadId,
       threadTitle: threadData.title,
+      threadMonth,
       posts: processedPosts,
       stats: {
         total: processedPosts.length,
@@ -265,9 +311,10 @@ app.post('/trigger-workflow', requireAuth, async (req, res) => {
   console.log('Received /trigger-workflow request:', { 
     url: req.body.url, 
     hnPostId: req.body.hnPostId, 
-    postTextLength: req.body.postText?.length 
+    postTextLength: req.body.postText?.length,
+    listingMonth: req.body.listingMonth,
   });
-  const { url, hnPostId, postText } = req.body;
+  const { url, hnPostId, postText, listingMonth } = req.body;
 
   if (!url && (!hnPostId || !postText)) {
     return res.status(400).json({ error: 'Either URL or HN Post data is required' });
@@ -281,7 +328,7 @@ app.post('/trigger-workflow', requireAuth, async (req, res) => {
       await temporalClient.workflow.start('processHNPost', {
         taskQueue: 'hn-jobs',
         workflowId: workflowId,
-        args: [hnPostId.toString(), postText],
+        args: [hnPostId.toString(), postText, typeof listingMonth === 'string' ? listingMonth : null],
         workflowExecutionTimeout: '30 minutes',
         workflowRunTimeout: '30 minutes',
       });
@@ -334,6 +381,7 @@ app.post('/process-all-unprocessed', requireAuth, async (req, res) => {
     interface HNThread2 { title: string; kids?: number[] }
     const threadResponse = await fetch(`https://hacker-news.firebaseio.com/v0/item/${threadId}.json`);
     const threadData = await threadResponse.json() as HNThread2;
+    const listingMonth = extractListingMonthFromThreadTitle(threadData.title) ?? getCurrentMonthKey();
 
     if (!threadData.kids || threadData.kids.length === 0) {
       return res.json({ processed: 0, message: 'No posts found in thread' });
@@ -400,7 +448,7 @@ app.post('/process-all-unprocessed', requireAuth, async (req, res) => {
           await temporalClient.workflow.start('processHNPost', {
             taskQueue: 'hn-jobs',
             workflowId: workflowId,
-            args: [post.id.toString(), plainText],
+            args: [post.id.toString(), plainText, listingMonth],
             workflowExecutionTimeout: '30 minutes',
             workflowRunTimeout: '30 minutes',
           });

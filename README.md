@@ -67,6 +67,21 @@ cd packages/api
 bun run db:migrate
 ```
 
+For an existing D1 database that already has job data and only needs the
+archive month field added and backfilled:
+
+```bash
+cd packages/api
+bun run db:migrate:listing-month
+```
+
+To create a stable, gitignored SQLite copy of the local D1 database for
+DataGrip:
+
+```bash
+./scripts/copy-local-d1.sh
+```
+
 ### Start development servers
 
 Using tmux (recommended):

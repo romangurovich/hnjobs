@@ -45,18 +45,23 @@ export async function enrichAndPersistWorkflow(
   content: string, 
   hnPostId: string | null, 
   jobUrl: string | null,
-  source: 'LINK' | 'POST_CONTENT'
+  source: 'LINK' | 'POST_CONTENT',
+  listingMonth: string | null = null,
 ): Promise<PersistedJob> {
   console.log(`[Post ${hnPostId}] Starting standalone enrichment. Source: ${source}`);
   const jobData = await processPageContent(content);
-  return await persistJobData(jobData, content, hnPostId, jobUrl, source);
+  return await persistJobData(jobData, content, hnPostId, jobUrl, source, listingMonth);
 }
 
 /**
  * STANDALONE WORKFLOW: Crawl, Analyze, and Process a potential job link.
  * Handles both single postings and list pages.
  */
-export async function handlePotentialJobLinkWorkflow(url: string, hnPostId: string | null): Promise<PersistedJob[]> {
+export async function handlePotentialJobLinkWorkflow(
+  url: string,
+  hnPostId: string | null,
+  listingMonth: string | null = null,
+): Promise<PersistedJob[]> {
   console.log(`[Post ${hnPostId}] Handling potential job link: ${url}`);
   
   // 1. Crawl the initial page
@@ -81,7 +86,7 @@ export async function handlePotentialJobLinkWorkflow(url: string, hnPostId: stri
         });
 
         return await executeChild(enrichAndPersistWorkflow, {
-          args: [subContent, hnPostId, subUrl, 'LINK'],
+          args: [subContent, hnPostId, subUrl, 'LINK', listingMonth],
           workflowId: `enrich-${uniqueId}`,
         });
       } catch (error) {
@@ -97,7 +102,7 @@ export async function handlePotentialJobLinkWorkflow(url: string, hnPostId: stri
   // 4. It's a single post, process it directly
   console.log(`[Post ${hnPostId}] Identified as single job posting.`);
   const result = await executeChild(enrichAndPersistWorkflow, {
-    args: [content, hnPostId, url, 'LINK'],
+    args: [content, hnPostId, url, 'LINK', listingMonth],
     workflowId: `enrich-direct-${hnPostId}-${url.slice(-10)}`,
   });
   return [result];
@@ -106,7 +111,11 @@ export async function handlePotentialJobLinkWorkflow(url: string, hnPostId: stri
 /**
  * ORCHESTRATOR WORKFLOW: Processes an HN post.
  */
-export async function processHNPost(hnPostId: string, postText: string): Promise<PersistedJob[]> {
+export async function processHNPost(
+  hnPostId: string,
+  postText: string,
+  listingMonth: string | null = null,
+): Promise<PersistedJob[]> {
   // Step 1: Extract links from the HN post
   const urls = await executeChild(extractLinksWorkflow, {
     args: [postText, hnPostId],
@@ -122,7 +131,7 @@ export async function processHNPost(hnPostId: string, postText: string): Promise
     const processingPromises = urls.map(async (url) => {
       try {
         const subResults = await executeChild(handlePotentialJobLinkWorkflow, {
-          args: [url, hnPostId],
+          args: [url, hnPostId, listingMonth],
           // Generate a unique ID for this potential job link handler
           workflowId: `handler-${hnPostId}-${url.slice(-10)}`,
         });
@@ -141,7 +150,7 @@ export async function processHNPost(hnPostId: string, postText: string): Promise
   if (results.length === 0) {
     console.log(`[Post ${hnPostId}] No links processed. Falling back to post content...`);
     const result = await executeChild(enrichAndPersistWorkflow, {
-      args: [postText, hnPostId, null, 'POST_CONTENT'],
+      args: [postText, hnPostId, null, 'POST_CONTENT', listingMonth],
       workflowId: `enrich-fallback-${hnPostId}`,
     });
     results.push(result);

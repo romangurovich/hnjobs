@@ -16,6 +16,7 @@ interface Job {
   summary: string | null;
   processed_from: string;
   created_at: string;
+  listing_month: string | null;
   technologies: string[];
 }
 
@@ -37,6 +38,22 @@ export function JobCard({ job }: JobCardProps) {
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+  };
+
+  const formatListingMonth = (monthKey: string | null) => {
+    if (!monthKey) {
+      return new Date(job.created_at).toLocaleDateString();
+    }
+
+    const [year, month] = monthKey.split('-').map(Number);
+    if (!year || !month) {
+      return monthKey;
+    }
+
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(year, month - 1, 1));
   };
 
   return (
@@ -80,7 +97,7 @@ export function JobCard({ job }: JobCardProps) {
         </div>
         <div className="flex items-center gap-2">
           <Calendar size={16} />
-          <span>Added {new Date(job.created_at).toLocaleDateString()}</span>
+          <span>HN Month {formatListingMonth(job.listing_month)}</span>
         </div>
       </div>
 

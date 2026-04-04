@@ -224,6 +224,10 @@ preflight_checks() {
         log_error "Missing ${CLOUD_INIT_DIR}/admin-init.yaml"
         exit 1
     fi
+    if [ ! -f "${CLOUD_INIT_DIR}/temporal-init.yaml" ]; then
+        log_error "Missing ${CLOUD_INIT_DIR}/temporal-init.yaml"
+        exit 1
+    fi
     log_success "Cloud-init templates found"
 }
 
@@ -280,6 +284,14 @@ gather_configuration() {
         fi
     fi
     SSH_PUBLIC_KEY=$(cat "$SSH_KEY_PATH")
+
+    # Get repository URL for initial clone on VMs
+    DEFAULT_REPO_URL=$(git config --get remote.origin.url 2>/dev/null || echo "https://github.com/your-org/hnjobs.git")
+    REPO_URL=$(prompt_input "Enter repository URL for VM bootstrap clone" "$DEFAULT_REPO_URL")
+    if [ -z "$REPO_URL" ]; then
+        log_error "Repository URL cannot be empty"
+        exit 1
+    fi
     
     # Get admin domain for Caddy SSL
     ADMIN_DOMAIN=$(prompt_input "Enter admin domain for HTTPS (e.g., admin.hnjobs.example.com)")
@@ -294,6 +306,7 @@ gather_configuration() {
     echo -e "  Compartment: ${CYAN}${COMPARTMENT_ID}${NC}"
     echo -e "  Region:      ${CYAN}${REGION}${NC}"
     echo -e "  SSH Key:     ${CYAN}${SSH_KEY_PATH}${NC}"
+    echo -e "  Repo URL:    ${CYAN}${REPO_URL}${NC}"
     echo -e "  Admin Domain:${CYAN}${ADMIN_DOMAIN}${NC}"
     echo ""
     
@@ -615,6 +628,7 @@ generate_cloud_init() {
     # Substitute variables in template
     sed -e "s|\${SSH_PUBLIC_KEY}|${SSH_PUBLIC_KEY}|g" \
         -e "s|\${ADMIN_DOMAIN}|${ADMIN_DOMAIN}|g" \
+        -e "s|\${REPO_URL}|${REPO_URL}|g" \
         "$template_file" > "$output_file"
     
     echo "$output_file"
@@ -1362,7 +1376,8 @@ generate_output() {
   },
   "ssh": {
     "user": "deploy",
-    "public_key_path": "$SSH_KEY_PATH"
+    "public_key_path": "$SSH_KEY_PATH",
+    "repo_url": "$REPO_URL"
   },
   "free_tier_usage": {
     "arm_ocpus_used": $(( WORKER_OCPUS * WORKER_COUNT + TEMPORAL_OCPUS )),

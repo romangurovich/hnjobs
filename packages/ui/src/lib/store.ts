@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getCurrentMonthKey } from './months';
 
 export type RoleLevel = 'JUNIOR' | 'MID' | 'SENIOR' | 'STAFF' | 'PRINCIPAL' | 'MANAGER';
 export type RemoteStatus = 'REMOTE_ONLY' | 'HYBRID' | 'ON_SITE';
@@ -10,6 +11,7 @@ interface FilterState {
   minSalary: number | null;
   technologies: string[];
   locations: string[];
+  selectedMonth: string;
   sortBy: 'created_at' | 'salary_max' | 'company_name';
   sortOrder: 'asc' | 'desc';
   page: number;
@@ -21,6 +23,7 @@ interface FilterState {
   setMinSalary: (salary: number | null) => void;
   toggleTechnology: (tech: string) => void;
   toggleLocation: (location: string) => void;
+  setSelectedMonth: (month: string) => void;
   setSort: (by: FilterState['sortBy'], order: FilterState['sortOrder']) => void;
   setPage: (page: number) => void;
   resetFilters: () => void;
@@ -33,6 +36,7 @@ const initialState = {
   minSalary: null,
   technologies: [],
   locations: [],
+  selectedMonth: getCurrentMonthKey(),
   sortBy: 'created_at' as const,
   sortOrder: 'desc' as const,
   page: 1,
@@ -74,9 +78,14 @@ export const useFilterStore = create<FilterState>((set) => ({
       : [...state.locations, location],
   })),
 
+  setSelectedMonth: (month) => set({ selectedMonth: month, page: 1 }),
+
   setSort: (by, order) => set({ sortBy: by, sortOrder: order, page: 1 }),
 
   setPage: (page) => set({ page }),
 
-  resetFilters: () => set(initialState),
+  resetFilters: () => set((state) => ({
+    ...initialState,
+    selectedMonth: state.selectedMonth,
+  })),
 }));

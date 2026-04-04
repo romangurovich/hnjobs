@@ -1,54 +1,43 @@
 name: Deploy UI
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
     branches: [main]
+    paths:
+      - packages/ui/**
+      - .github/workflows/deploy-ui.yml
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-ui-production
+  cancel-in-progress: false
 
 jobs:
   deploy:
     name: Deploy to Cloudflare Pages
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    timeout-minutes: 20
+    environment: production
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Check for relevant changes
-        id: changes
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "should_deploy=true" >> $GITHUB_OUTPUT
-          else
-            CHANGED=$(git diff --name-only HEAD~1 HEAD | grep -E '^packages/ui/' || true)
-            if [ -n "$CHANGED" ]; then
-              echo "should_deploy=true" >> $GITHUB_OUTPUT
-            else
-              echo "should_deploy=false" >> $GITHUB_OUTPUT
-            fi
-          fi
 
       - uses: oven-sh/setup-bun@v2
-        if: steps.changes.outputs.should_deploy == 'true'
         with:
           bun-version: latest
 
       - name: Install dependencies
-        if: steps.changes.outputs.should_deploy == 'true'
         run: bun install --frozen-lockfile
 
       - name: Build UI
-        if: steps.changes.outputs.should_deploy == 'true'
         run: bun run build
         working-directory: packages/ui
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
 
       - name: Deploy to Cloudflare Pages
-        if: steps.changes.outputs.should_deploy == 'true'
         run: bunx wrangler pages deploy dist --project-name=hnjobs-ui
         working-directory: packages/ui
         env:

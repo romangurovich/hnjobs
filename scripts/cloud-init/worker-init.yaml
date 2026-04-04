@@ -2,14 +2,13 @@
 # Cloud-init configuration for HN Jobs Worker VM
 # This script runs on first boot to set up the Temporal worker environment
 
-# Set hostname
-hostname: hnjobs-worker
+# Allow hostname to be set dynamically in setup script
+preserve_hostname: false
 
 # Create deploy user
 users:
   - name: deploy
     groups: [wheel]
-    sudo: ['ALL=(ALL) NOPASSWD:ALL']
     shell: /bin/bash
     ssh_authorized_keys:
       - ${SSH_PUBLIC_KEY}
@@ -32,7 +31,7 @@ write_files:
       [Unit]
       Description=HN Jobs Temporal Worker
       After=network.target
-      
+
       [Service]
       Type=simple
       User=deploy
@@ -44,26 +43,27 @@ write_files:
       StandardOutput=journal
       StandardError=journal
       Environment=NODE_ENV=production
-      
+      EnvironmentFile=-/opt/hnjobs/packages/worker/.env
+
       # Resource limits
       LimitNOFILE=65535
-      
+
       [Install]
       WantedBy=multi-user.target
 
-  # Environment file template
-  - path: /opt/hnjobs/packages/worker/.env.template
+  # Environment file template (moved into repo after clone)
+  - path: /opt/hnjobs/.env.worker.template
     owner: deploy:deploy
     permissions: '0600'
     content: |
       # Temporal Configuration (use Temporal VM's IP or internal DNS)
       TEMPORAL_ADDRESS=hnjobs-temporal:7233
       TEMPORAL_NAMESPACE=default
-      
+
       # API Configuration
       API_URL=https://api.hnjobs.example.com
       API_TOKEN=your-api-token
-      
+
       # Anthropic API for AI processing
       ANTHROPIC_API_KEY=your-anthropic-key
 
@@ -84,22 +84,52 @@ write_files:
     content: |
       #!/bin/bash
       set -e
-      
+
       echo "=== HN Jobs Worker Setup Script ==="
-      
+
       # Install Bun for deploy user
       echo "Installing Bun..."
       sudo -u deploy bash -c 'curl -fsSL https://bun.sh/install | bash'
-      
+
       # Add bun to PATH for deploy user
       echo 'export BUN_INSTALL="$HOME/.bun"' >> /home/deploy/.bashrc
       echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> /home/deploy/.bashrc
-      
-      # Create application directory
-      echo "Creating application directory..."
-      mkdir -p /opt/hnjobs/packages/worker
-      chown -R deploy:deploy /opt/hnjobs
-      
+
+      # Set hostname based on OCI instance display name
+      echo "Setting hostname..."
+      INSTANCE_NAME=$(curl -sf -H "Authorization: Bearer Oracle" http://169.254.169.254/opc/v2/instance/ | jq -r '.displayName // empty' || true)
+      if [ -n "$INSTANCE_NAME" ]; then
+        hostnamectl set-hostname "$INSTANCE_NAME"
+      else
+        echo "Could not fetch instance display name; leaving hostname as-is."
+      fi
+
+      # Prepare application directory
+      echo "Preparing application directory..."
+      mkdir -p /opt/hnjobs
+      chown deploy:deploy /opt/hnjobs
+
+      # Clone repository if missing
+      if [ ! -d /opt/hnjobs/.git ]; then
+        if [ -z "$(ls -A /opt/hnjobs)" ]; then
+          echo "Cloning repository..."
+          sudo -u deploy git clone ${REPO_URL} /opt/hnjobs
+        else
+          echo "WARNING: /opt/hnjobs is not empty; skipping clone."
+        fi
+      fi
+
+      # Move template into repo if available
+      if [ -d /opt/hnjobs/packages/worker ]; then
+        if [ -f /opt/hnjobs/.env.worker.template ]; then
+          mv /opt/hnjobs/.env.worker.template /opt/hnjobs/packages/worker/.env.template
+          chown deploy:deploy /opt/hnjobs/packages/worker/.env.template
+          chmod 600 /opt/hnjobs/packages/worker/.env.template
+        fi
+      else
+        echo "WARNING: /opt/hnjobs/packages/worker not found; template remains at /opt/hnjobs/.env.worker.template"
+      fi
+
       # Install Playwright dependencies for web scraping
       echo "Installing Playwright dependencies..."
       dnf install -y \
@@ -117,15 +147,15 @@ write_files:
         pango \
         xorg-x11-fonts-Type1 \
         xorg-x11-fonts-misc || true
-      
+
       # Enable the service (but don't start - needs .env first)
       echo "Enabling hnjobs-worker service..."
       systemctl daemon-reload
       systemctl enable hnjobs-worker
-      
+
       echo "=== Worker setup complete! ==="
       echo "Next steps:"
-      echo "1. Clone repository: git clone <repo> /opt/hnjobs"
+      echo "1. If repo not cloned, clone: git clone ${REPO_URL} /opt/hnjobs"
       echo "2. Create .env file: cp /opt/hnjobs/packages/worker/.env.template /opt/hnjobs/packages/worker/.env"
       echo "3. Edit .env with your values"
       echo "4. Install dependencies: cd /opt/hnjobs && bun install"
@@ -135,24 +165,24 @@ write_files:
 runcmd:
   # Update system
   - dnf update -y
-  
+
   # Set timezone
   - timedatectl set-timezone UTC
-  
+
   # Configure firewall
   - firewall-cmd --permanent --add-service=ssh
   - firewall-cmd --reload
-  
+
   # Install OCI Monitoring Agent
   - |
     echo "Installing OCI Unified Monitoring Agent..."
     rpm -ivh https://objectstorage.us-phoenix-1.oraclecloud.com/n/axqc4ws2v99q/b/unified-monitoring-agent/o/unified-monitoring-agent-latest.rpm || true
     systemctl enable unified-monitoring-agent
     systemctl start unified-monitoring-agent
-  
+
   # Run the setup script
   - /opt/setup-worker.sh
-  
+
   # Log completion
   - echo "Cloud-init completed at $(date)" >> /var/log/cloud-init-complete.log
 
@@ -160,6 +190,6 @@ runcmd:
 final_message: |
   HN Jobs Worker VM initialization complete!
   System boot took $UPTIME seconds.
-  
+
   SSH in as: ssh deploy@<public-ip>
   Check logs: sudo journalctl -u hnjobs-worker -f

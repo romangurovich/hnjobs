@@ -1,43 +1,27 @@
 name: Deploy Worker
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
     branches: [main]
+    paths:
+      - packages/worker/**
+      - packages/core/**
+      - .github/workflows/deploy-worker.yml
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-worker-production
+  cancel-in-progress: false
+
 jobs:
-  check-changes:
-    name: Check for changes
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    outputs:
-      should_deploy: ${{ steps.changes.outputs.should_deploy }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Check for relevant changes
-        id: changes
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "should_deploy=true" >> $GITHUB_OUTPUT
-          else
-            CHANGED=$(git diff --name-only HEAD~1 HEAD | grep -E '^packages/(worker|core)/' || true)
-            if [ -n "$CHANGED" ]; then
-              echo "should_deploy=true" >> $GITHUB_OUTPUT
-            else
-              echo "should_deploy=false" >> $GITHUB_OUTPUT
-            fi
-          fi
-
   deploy:
     name: Deploy to Worker ${{ matrix.worker }}
     runs-on: ubuntu-latest
-    needs: check-changes
-    if: needs.check-changes.outputs.should_deploy == 'true'
+    timeout-minutes: 20
+    environment: production
     strategy:
       matrix:
         worker: [1, 2]
@@ -53,9 +37,13 @@ jobs:
           host: ${{ secrets[matrix.host_secret] }}
           username: deploy
           key: ${{ secrets.ORACLE_WORKER_SSH_KEY }}
+          script_stop: true
           script: |
+            set -euo pipefail
             cd /opt/hnjobs
             git fetch origin main
-            git reset --hard origin/main
+            git switch main || git switch -c main --track origin/main
+            git pull --ff-only origin main
             bun install --frozen-lockfile
             sudo systemctl restart hnjobs-worker
+            sudo systemctl is-active --quiet hnjobs-worker

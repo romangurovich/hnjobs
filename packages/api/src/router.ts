@@ -1,26 +1,138 @@
 import { z } from 'zod';
 import { publicProcedure, protectedProcedure, router } from './t';
 import { nanoid } from 'nanoid';
-import { jobInputSchema } from '@hnjobs/core';
+import { jobInputSchema, listingMonthSchema } from '@hnjobs/core';
+
+interface TableInfoRow {
+  name: string;
+}
+
+const getCurrentMonthKey = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const getSchemaDiagnostics = (label: string, schema: unknown) => {
+  if (!schema || typeof schema !== 'object') {
+    return {
+      label,
+      typeofSchema: typeof schema,
+      isObject: false,
+    };
+  }
+
+  const candidate = schema as {
+    _def?: { typeName?: string; innerType?: unknown };
+    _zod?: { def?: { type?: string; innerType?: unknown } };
+    constructor?: { name?: string };
+    optional?: unknown;
+    parse?: unknown;
+    safeParse?: unknown;
+  };
+
+  return {
+    label,
+    typeofSchema: typeof schema,
+    constructorName: candidate.constructor?.name ?? null,
+    has_def: '_def' in candidate,
+    defTypeName: candidate._def?.typeName ?? null,
+    has_zod: '_zod' in candidate,
+    zodDefType: candidate._zod?.def?.type ?? null,
+    isLocalZodType: schema instanceof z.ZodType,
+    hasOptionalMethod: typeof candidate.optional === 'function',
+    hasParseMethod: typeof candidate.parse === 'function',
+    hasSafeParseMethod: typeof candidate.safeParse === 'function',
+  };
+};
+
+console.log('[zod-debug] preparing API schemas', {
+  apiStringSchema: getSchemaDiagnostics('api-string', z.string()),
+  listingMonthSchema: getSchemaDiagnostics('listing-month', listingMonthSchema),
+  jobInputSchema: getSchemaDiagnostics('job-input', jobInputSchema),
+});
+
+const getListingMonthExpression = (tableAlias: string, hasListingMonthColumn: boolean) => (
+  hasListingMonthColumn
+    ? `COALESCE(${tableAlias}.listing_month, substr(${tableAlias}.created_at, 1, 7))`
+    : `substr(${tableAlias}.created_at, 1, 7)`
+);
+
+const hasListingMonthColumn = async (db: { prepare: (query: string) => { all: <T>() => Promise<{ results: T[] }> } }) => {
+  const { results } = await db.prepare('PRAGMA table_info(jobs)').all<TableInfoRow>();
+  return results.some((column) => column.name === 'listing_month');
+};
+
+const listJobsInputSchemaOptional = (() => {
+  try {
+    const optionalListingMonthSchema = listingMonthSchema.optional();
+
+    console.log('[zod-debug] constructing listJobsInputSchema', {
+      optionalListingMonthSchema: getSchemaDiagnostics('listing-month-optional', optionalListingMonthSchema),
+    });
+
+    const listJobsInputSchema = z.object({
+      search: z.string().optional(),
+      roleLevels: z.array(z.string()).optional(),
+      remoteStatuses: z.array(z.string()).optional(),
+      locations: z.array(z.string()).optional(),
+      minSalary: z.number().nullable().optional(),
+      technologies: z.array(z.string()).optional(),
+      month: optionalListingMonthSchema,
+      page: z.number().default(1),
+      pageSize: z.number().default(10),
+      sortBy: z.enum(['created_at', 'salary_max', 'company_name']).default('created_at'),
+      sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    });
+
+    console.log('[zod-debug] constructed listJobsInputSchema successfully', {
+      listJobsInputSchema: getSchemaDiagnostics('list-jobs-input', listJobsInputSchema),
+    });
+
+    return listJobsInputSchema.optional();
+  } catch (error) {
+    console.error('[zod-debug] failed to construct listJobsInputSchema', {
+      error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : error,
+      listingMonthSchema: getSchemaDiagnostics('listing-month', listingMonthSchema),
+      jobInputSchema: getSchemaDiagnostics('job-input', jobInputSchema),
+    });
+    throw error;
+  }
+})();
 
 const jobRouter = router({
   save: protectedProcedure
     .input(jobInputSchema)
     .mutation(async ({ input, ctx }) => {
       const id = nanoid();
+      const listingMonth = input.listing_month ?? getCurrentMonthKey();
+      const supportsListingMonth = await hasListingMonthColumn(ctx.db);
       
       // 1. Insert the job
-      await ctx.db.prepare(`
-        INSERT INTO jobs (
-          id, hn_post_id, job_url, company_name, job_title, salary_min, salary_max, 
-          salary_currency, location, remote_status, role_level, management_level, 
-          summary, processed_from, raw_content
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        id, input.hn_post_id ?? null, input.job_url ?? null, input.company_name, input.job_title, input.salary_min, input.salary_max,
-        input.salary_currency, input.location, input.remote_status, input.role_level, 
-        input.management_level, input.summary ?? null, input.processed_from, input.raw_content ?? null
-      ).run();
+      if (supportsListingMonth) {
+        await ctx.db.prepare(`
+          INSERT INTO jobs (
+            id, hn_post_id, job_url, company_name, job_title, salary_min, salary_max, 
+            salary_currency, location, remote_status, role_level, management_level, 
+            summary, processed_from, raw_content, listing_month
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          id, input.hn_post_id ?? null, input.job_url ?? null, input.company_name, input.job_title, input.salary_min, input.salary_max,
+          input.salary_currency, input.location, input.remote_status, input.role_level, 
+          input.management_level, input.summary ?? null, input.processed_from, input.raw_content ?? null, listingMonth
+        ).run();
+      } else {
+        await ctx.db.prepare(`
+          INSERT INTO jobs (
+            id, hn_post_id, job_url, company_name, job_title, salary_min, salary_max, 
+            salary_currency, location, remote_status, role_level, management_level, 
+            summary, processed_from, raw_content
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          id, input.hn_post_id ?? null, input.job_url ?? null, input.company_name, input.job_title, input.salary_min, input.salary_max,
+          input.salary_currency, input.location, input.remote_status, input.role_level, 
+          input.management_level, input.summary ?? null, input.processed_from, input.raw_content ?? null
+        ).run();
+      }
 
       // 2. Handle technologies (simple implementation)
       for (const tech of input.technologies) {
@@ -79,21 +191,12 @@ const jobRouter = router({
     }),
 
   list: publicProcedure
-    .input(z.object({
-      search: z.string().optional(),
-      roleLevels: z.array(z.string()).optional(),
-      remoteStatuses: z.array(z.string()).optional(),
-      locations: z.array(z.string()).optional(),
-      minSalary: z.number().nullable().optional(),
-      technologies: z.array(z.string()).optional(),
-      page: z.number().default(1),
-      pageSize: z.number().default(10),
-      sortBy: z.enum(['created_at', 'salary_max', 'company_name']).default('created_at'),
-      sortOrder: z.enum(['asc', 'desc']).default('desc'),
-    }).optional())
+    .input(listJobsInputSchemaOptional)
     .query(async ({ input, ctx }) => {
       const conditions: string[] = [];
       const params: (string | number)[] = [];
+      const supportsListingMonth = await hasListingMonthColumn(ctx.db);
+      const listingMonthExpression = getListingMonthExpression('j', supportsListingMonth);
 
       if (input?.search) {
         conditions.push('(j.company_name LIKE ? OR j.job_title LIKE ?)');
@@ -134,6 +237,11 @@ const jobRouter = router({
         params.push(...input.technologies);
       }
 
+      if (typeof input?.month === 'string') {
+        conditions.push(`${listingMonthExpression} = ?`);
+        params.push(input.month);
+      }
+
       const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
 
       // 1. Get total count
@@ -152,6 +260,7 @@ const jobRouter = router({
       const query = `
         SELECT 
           j.*, 
+          ${listingMonthExpression} as archive_month,
           GROUP_CONCAT(t.name) as technologies_list
         FROM jobs j
         LEFT JOIN job_technologies jt ON j.id = jt.job_id
@@ -167,6 +276,7 @@ const jobRouter = router({
       return {
         jobs: results.map((job) => ({
           ...(job as Record<string, unknown>),
+          listing_month: (job as { archive_month?: string }).archive_month ?? null,
           technologies: (job as { technologies_list?: string }).technologies_list 
             ? (job as { technologies_list: string }).technologies_list.split(',') 
             : [],
@@ -179,26 +289,75 @@ const jobRouter = router({
     }),
 
   getTechnologies: publicProcedure
-    .query(async ({ ctx }) => {
+    .input(z.object({
+      month: listingMonthSchema.optional(),
+    }).optional())
+    .query(async ({ input, ctx }) => {
+      const supportsListingMonth = await hasListingMonthColumn(ctx.db);
+      const listingMonthExpression = getListingMonthExpression('j', supportsListingMonth);
+      const params: string[] = [];
+      const monthFilter = typeof input?.month === 'string' ? input.month : null;
+      const whereClause = monthFilter
+        ? `WHERE ${listingMonthExpression} = ?`
+        : '';
+
+      if (monthFilter) {
+        params.push(monthFilter);
+      }
+
       const { results } = await ctx.db.prepare(`
         SELECT t.name, COUNT(jt.job_id) as job_count
         FROM technologies t
         JOIN job_technologies jt ON t.id = jt.technology_id
+        JOIN jobs j ON jt.job_id = j.id
+        ${whereClause}
         GROUP BY t.id
         ORDER BY job_count DESC
         LIMIT 50
-      `).all();
+      `).bind(...params).all();
       return results;
     }),
 
   getLocations: publicProcedure
-    .query(async ({ ctx }) => {
+    .input(z.object({
+      month: listingMonthSchema.optional(),
+    }).optional())
+    .query(async ({ input, ctx }) => {
+      const supportsListingMonth = await hasListingMonthColumn(ctx.db);
+      const listingMonthExpression = getListingMonthExpression('j', supportsListingMonth);
+      const params: string[] = [];
+      const monthFilter = typeof input?.month === 'string' ? input.month : null;
+      const whereClause = monthFilter
+        ? `WHERE ${listingMonthExpression} = ?`
+        : '';
+
+      if (monthFilter) {
+        params.push(monthFilter);
+      }
+
       const { results } = await ctx.db.prepare(`
         SELECT location as name, COUNT(*) as job_count
-        FROM jobs
+        FROM jobs j
+        ${whereClause}
         GROUP BY location
         ORDER BY job_count DESC
-      `).all();
+      `).bind(...params).all();
+      return results;
+    }),
+
+  getListingMonths: publicProcedure
+    .query(async ({ ctx }) => {
+      const supportsListingMonth = await hasListingMonthColumn(ctx.db);
+      const listingMonthExpression = getListingMonthExpression('j', supportsListingMonth);
+
+      const { results } = await ctx.db.prepare(`
+        SELECT ${listingMonthExpression} as listing_month, COUNT(*) as job_count
+        FROM jobs j
+        WHERE ${listingMonthExpression} IS NOT NULL
+        GROUP BY listing_month
+        ORDER BY listing_month DESC
+      `).all<{ listing_month: string; job_count: number }>();
+
       return results;
     }),
 

@@ -15,6 +15,7 @@ describe("jobInputSchema", () => {
       management_level: 0,
       technologies: ["TypeScript", "React", "Node.js"],
       processed_from: "LINK",
+      listing_month: "2026-03",
     };
 
     const result = jobInputSchema.safeParse(validJob);
@@ -85,6 +86,26 @@ describe("jobInputSchema", () => {
     };
 
     const result = jobInputSchema.safeParse(invalidProcessedFrom);
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects invalid listing month format", () => {
+    const invalidListingMonth = {
+      company_name: "Test Co",
+      job_title: "Developer",
+      salary_min: null,
+      salary_max: null,
+      salary_currency: null,
+      location: "Remote",
+      remote_status: "remote",
+      role_level: "junior",
+      management_level: 0,
+      technologies: [],
+      processed_from: "LINK",
+      listing_month: "March 2026",
+    };
+
+    const result = jobInputSchema.safeParse(invalidListingMonth);
     expect(result.success).toBe(false);
   });
 });
