@@ -31,19 +31,36 @@ jobs:
           - worker: 2
             host_secret: ORACLE_WORKER_2_HOST
     steps:
+      - name: Set up SSH
+        env:
+          WORKER_HOST: ${{ secrets[matrix.host_secret] }}
+          WORKER_SSH_KEY: ${{ secrets.ORACLE_WORKER_SSH_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$WORKER_SSH_KEY" | tr -d '\r' > ~/.ssh/oracle_worker_key
+          chmod 600 ~/.ssh/oracle_worker_key
+          ssh-keyscan -T 30 -H "$WORKER_HOST" >> ~/.ssh/known_hosts
+
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets[matrix.host_secret] }}
-          username: deploy
-          key: ${{ secrets.ORACLE_WORKER_SSH_KEY }}
-          script_stop: true
-          script: |
-            set -euo pipefail
-            cd /opt/hnjobs
-            git fetch origin main
-            git switch main || git switch -c main --track origin/main
-            git pull --ff-only origin main
-            bun install --frozen-lockfile
-            sudo systemctl restart hnjobs-worker
-            sudo systemctl is-active --quiet hnjobs-worker
+        env:
+          WORKER_HOST: ${{ secrets[matrix.host_secret] }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh \
+            -i ~/.ssh/oracle_worker_key \
+            -o BatchMode=yes \
+            -o ConnectTimeout=30 \
+            -o StrictHostKeyChecking=yes \
+            "deploy@${WORKER_HOST}" <<'EOF'
+          set -euo pipefail
+          cd /opt/hnjobs
+          git fetch origin main
+          git switch main || git switch -c main --track origin/main
+          git pull --ff-only origin main
+          bun install --frozen-lockfile
+          sudo systemctl restart hnjobs-worker
+          sudo systemctl is-active --quiet hnjobs-worker
+          EOF

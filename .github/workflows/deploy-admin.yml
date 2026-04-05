@@ -54,39 +54,65 @@ jobs:
           name: admin-ui-dist
           path: admin-ui-dist
 
+      - name: Set up SSH
+        env:
+          ADMIN_HOST: ${{ secrets.ORACLE_ADMIN_HOST }}
+          ADMIN_SSH_KEY: ${{ secrets.ORACLE_ADMIN_SSH_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$ADMIN_SSH_KEY" | tr -d '\r' > ~/.ssh/oracle_admin_key
+          chmod 600 ~/.ssh/oracle_admin_key
+          ssh-keyscan -T 30 -H "$ADMIN_HOST" >> ~/.ssh/known_hosts
+
       - name: Deploy code via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.ORACLE_ADMIN_HOST }}
-          username: deploy
-          key: ${{ secrets.ORACLE_ADMIN_SSH_KEY }}
-          script_stop: true
-          script: |
-            set -euo pipefail
-            cd /opt/hnjobs
-            git fetch origin main
-            git switch main || git switch -c main --track origin/main
-            git pull --ff-only origin main
-            bun install --frozen-lockfile
+        env:
+          ADMIN_HOST: ${{ secrets.ORACLE_ADMIN_HOST }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh \
+            -i ~/.ssh/oracle_admin_key \
+            -o BatchMode=yes \
+            -o ConnectTimeout=30 \
+            -o StrictHostKeyChecking=yes \
+            "deploy@${ADMIN_HOST}" <<'EOF'
+          set -euo pipefail
+          cd /opt/hnjobs
+          git fetch origin main
+          git switch main || git switch -c main --track origin/main
+          git pull --ff-only origin main
+          bun install --frozen-lockfile
+          EOF
 
       - name: Copy Admin UI build
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.ORACLE_ADMIN_HOST }}
-          username: deploy
-          key: ${{ secrets.ORACLE_ADMIN_SSH_KEY }}
-          source: admin-ui-dist/*
-          target: /opt/hnjobs/packages/admin/ui/dist
-          strip_components: 1
+        env:
+          ADMIN_HOST: ${{ secrets.ORACLE_ADMIN_HOST }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          scp \
+            -i ~/.ssh/oracle_admin_key \
+            -o BatchMode=yes \
+            -o ConnectTimeout=30 \
+            -o StrictHostKeyChecking=yes \
+            -r admin-ui-dist/. \
+            "deploy@${ADMIN_HOST}:/opt/hnjobs/packages/admin/ui/dist/"
 
       - name: Restart service
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.ORACLE_ADMIN_HOST }}
-          username: deploy
-          key: ${{ secrets.ORACLE_ADMIN_SSH_KEY }}
-          script_stop: true
-          script: |
-            set -euo pipefail
-            sudo systemctl restart hnjobs-admin
-            sudo systemctl is-active --quiet hnjobs-admin
+        env:
+          ADMIN_HOST: ${{ secrets.ORACLE_ADMIN_HOST }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh \
+            -i ~/.ssh/oracle_admin_key \
+            -o BatchMode=yes \
+            -o ConnectTimeout=30 \
+            -o StrictHostKeyChecking=yes \
+            "deploy@${ADMIN_HOST}" <<'EOF'
+          set -euo pipefail
+          sudo systemctl restart hnjobs-admin
+          sudo systemctl is-active --quiet hnjobs-admin
+          EOF
